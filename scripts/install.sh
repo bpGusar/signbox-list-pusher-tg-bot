@@ -1,14 +1,92 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 # Одной командой с VPS (без git clone вручную):
 #   curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/main/scripts/install.sh | bash
 #
 # Приватный репозиторий (SSH):
-#   REPO_URL=git@github.com:USER/signbox-list-pusher-tg-bot.git bash install.sh
+#   REPO_URL=git@github.com:USER/signbox-list-pusher-tg-bot.git curl -fsSL .../install.sh | bash
 #
-# Своя папка установки:
+# По умолчанию установка в текущую папку (pwd). Своя папка:
 #   INSTALL_DIR=~/my-bot curl -fsSL .../install.sh | bash
+
+needs_bootstrap() {
+  local self="${BASH_SOURCE[0]:-}"
+  local script_dir=""
+
+  if [[ -z "${self}" || "${self}" == "bash" || ! -f "${self}" ]]; then
+    return 0
+  fi
+
+  script_dir="$(cd "$(dirname "${self}")" && pwd)"
+  if [[ ! -f "${script_dir}/common.sh" ]]; then
+    return 0
+  fi
+
+  if [[ -f "${script_dir}/../docker-compose.yml" ]]; then
+    return 1
+  fi
+
+  return 0
+}
+
+bootstrap_install() {
+  set -e
+
+  local install_dir repo_url branch local_install
+  if [[ -n "${INSTALL_DIR:-}" ]]; then
+    install_dir="$(cd "${INSTALL_DIR}" && pwd)"
+  else
+    install_dir="$(pwd)"
+  fi
+  repo_url="${REPO_URL:-https://github.com/bpGusar/signbox-list-pusher-tg-bot.git}"
+  branch="${REPO_BRANCH:-main}"
+  local_install="${install_dir}/scripts/install.sh"
+
+  if [[ -f "${local_install}" ]]; then
+    exec env INSTALL_DIR="${install_dir}" bash "${local_install}" "$@"
+  fi
+
+  if ! command -v git &>/dev/null; then
+    printf '==> Git не найден — устанавливаю...\n'
+    if command -v apt-get &>/dev/null; then
+      sudo apt-get update -qq
+      sudo apt-get install -y git
+    elif command -v dnf &>/dev/null; then
+      sudo dnf install -y git
+    elif command -v yum &>/dev/null; then
+      sudo yum install -y git
+    else
+      printf '!!> Не удалось установить git автоматически.\n' >&2
+      exit 1
+    fi
+  fi
+
+  if [[ -e "${install_dir}" && ! -d "${install_dir}/.git" && -n "$(ls -A "${install_dir}" 2>/dev/null)" ]]; then
+    printf '!!> Папка %s не пуста. Создайте пустую папку, перейдите в неё (cd) и запустите установку снова.\n' "${install_dir}" >&2
+    exit 1
+  fi
+
+  if [[ ! -d "${install_dir}/.git" ]]; then
+    printf '==> Клонирую репозиторий...\n'
+    printf '    URL:    %s\n' "${repo_url}"
+    printf '    Ветка:  %s\n' "${branch}"
+    printf '    Папка:  %s\n' "${install_dir}"
+    git clone --branch "${branch}" --depth 1 "${repo_url}" "${install_dir}"
+  fi
+
+  if [[ ! -f "${local_install}" ]]; then
+    printf '!!> После клонирования не найден %s\n' "${local_install}" >&2
+    exit 1
+  fi
+
+  exec env INSTALL_DIR="${install_dir}" bash "${local_install}" "$@"
+}
+
+if needs_bootstrap; then
+  bootstrap_install "$@"
+fi
+
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=common.sh
@@ -123,30 +201,17 @@ start_bot() {
 }
 
 main() {
-  local repo_root script_dir install_script
+  local repo_root
 
-  if repo_root="$(resolve_repo_root)"; then
-    :
-  else
-    repo_root="$(clone_or_update_repo)"
-    script_dir="$(script_path)"
-    install_script="${repo_root}/scripts/install.sh"
-
-    if [[ ! -f "${install_script}" ]]; then
-      die "После клонирования не найден ${install_script}"
-    fi
-
-    # curl ... | bash — перезапускаем скрипт из клонированного репозитория.
-    if [[ "${script_dir}" != "${repo_root}/scripts" ]]; then
-      info "Перезапускаю установку из ${install_script}"
-      exec bash "${install_script}" "$@"
-    fi
+  if ! repo_root="$(resolve_repo_root)"; then
+    die "Не удалось найти корень проекта. Запустите install.sh из репозитория или через curl."
   fi
 
   REPO_ROOT="${repo_root}"
   cd "${REPO_ROOT}"
 
   info "Корень проекта: ${REPO_ROOT}"
+  save_install_dir_marker "${REPO_ROOT}"
   ensure_docker
   ensure_compose
   create_env_file

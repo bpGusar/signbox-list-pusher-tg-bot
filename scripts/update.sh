@@ -1,11 +1,72 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 # Обновление из любого места (после install.sh):
 #   curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/main/scripts/update.sh | bash
 #
 # Или из папки проекта:
 #   ~/signbox-list-pusher-tg-bot/scripts/update.sh
+
+needs_bootstrap() {
+  local self="${BASH_SOURCE[0]:-}"
+  local script_dir=""
+
+  if [[ -z "${self}" || "${self}" == "bash" || ! -f "${self}" ]]; then
+    return 0
+  fi
+
+  script_dir="$(cd "$(dirname "${self}")" && pwd)"
+  if [[ ! -f "${script_dir}/common.sh" ]]; then
+    return 0
+  fi
+
+  if [[ -f "${script_dir}/../docker-compose.yml" ]]; then
+    return 1
+  fi
+
+  return 0
+}
+
+bootstrap_resolve_install_dir() {
+  local install_dir marker_file="${HOME}/.local/share/signbox-list-pusher-tg-bot/install_dir"
+
+  if [[ -n "${INSTALL_DIR:-}" ]]; then
+    cd "${INSTALL_DIR}" && pwd
+    return 0
+  fi
+
+  if [[ -f "${marker_file}" ]]; then
+    install_dir="$(tr -d '\n' <"${marker_file}")"
+    if [[ -f "${install_dir}/docker-compose.yml" ]]; then
+      printf '%s\n' "${install_dir}"
+      return 0
+    fi
+  fi
+
+  pwd
+}
+
+bootstrap_maintenance() {
+  set -e
+
+  local install_dir local_script
+  install_dir="$(bootstrap_resolve_install_dir)"
+  local_script="${install_dir}/scripts/update.sh"
+
+  if [[ -f "${local_script}" ]]; then
+    exec bash "${local_script}" "$@"
+  fi
+
+  printf '!!> Проект не найден в %s\n' "${install_dir}" >&2
+  printf '!!> Сначала выполните установку:\n' >&2
+  printf '    curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/main/scripts/install.sh | bash\n' >&2
+  exit 1
+}
+
+if needs_bootstrap; then
+  bootstrap_maintenance "$@"
+fi
+
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=common.sh

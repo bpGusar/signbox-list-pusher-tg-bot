@@ -186,18 +186,21 @@ Docker, Git и клонирование репозитория скрипт ус
 
 ### Автоматическая установка (рекомендуется)
 
-На VPS выполните одну команду — `git clone` вручную не нужен:
+На VPS создайте папку, перейдите в неё и выполните одну команду — `git clone` вручную не нужен:
 
 ```bash
+mkdir -p ~/bots/tg-pusher && cd ~/bots/tg-pusher
 curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/main/scripts/install.sh | bash
 ```
 
 Скрипт `scripts/install.sh`:
 
 1. Установит Docker и Git (если их нет).
-2. Склонирует репозиторий в папку установки (по умолчанию `~/signbox-list-pusher-tg-bot`).
+2. Склонирует репозиторий **в текущую папку** (ту, из которой вы запустили команду).
 3. Спросит значения для `.env` и создаст файл с правами `600`.
 4. Соберёт образ и запустит production-контейнер.
+
+> Папка должна быть **пустой**. Не запускайте установку из `/root` или `/home/user`, если там уже есть другие файлы.
 
 В логах должно появиться `Bot is running...`. Отправьте боту `/start` в Telegram для проверки доступа к GitHub.
 
@@ -209,26 +212,27 @@ curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/
 
 | Переменная    | По умолчанию                                              | Описание |
 | ------------- | --------------------------------------------------------- | -------- |
-| `INSTALL_DIR` | `~/signbox-list-pusher-tg-bot`                            | Папка на сервере, куда клонируется проект |
+| `INSTALL_DIR` | текущая папка (`pwd`)                                     | Папка на сервере, куда клонируется проект |
 | `REPO_URL`    | `https://github.com/bpGusar/signbox-list-pusher-tg-bot.git` | URL git-репозитория |
 | `REPO_BRANCH` | `main`                                                    | Ветка для клонирования |
 
-**`INSTALL_DIR`** — путь к папке проекта на VPS. Если переменную не задавать, проект установится в домашнюю директорию **текущего пользователя** (`$HOME`), в подпапку `signbox-list-pusher-tg-bot`. Это не «текущая папка в терминале», а именно домашний каталог пользователя, под которым вы выполнили команду (например, `/home/ubuntu/signbox-list-pusher-tg-bot`).
+**`INSTALL_DIR`** — путь к папке проекта на VPS. Если переменную не задавать, репозиторий клонируется **в ту папку, из которой вы запустили скрипт** (`pwd`). Обычный порядок: `mkdir` → `cd` → `curl ... | bash`.
 
 Примеры:
 
 ```bash
-# Установка в домашнюю папку пользователя (по умолчанию)
+# Установка в /opt/tg-bot
+mkdir -p /opt/tg-bot && cd /opt/tg-bot
 curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/main/scripts/install.sh | bash
 
-# Установка в свою папку
+# Установка без cd (явный путь)
 INSTALL_DIR=~/bots/tg-pusher curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/main/scripts/install.sh | bash
 
 # Приватный репозиторий (нужен SSH-ключ на сервере)
 REPO_URL=git@github.com:USER/signbox-list-pusher-tg-bot.git curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/main/scripts/install.sh | bash
 ```
 
-Скрипты `update.sh` и `remove.sh` тоже ищут проект в `INSTALL_DIR` или в `~/signbox-list-pusher-tg-bot`, если переменная не задана.
+Скрипты `update.sh` и `remove.sh` ищут проект в текущей папке, в `INSTALL_DIR` или по сохранённому пути после установки (`~/.local/share/signbox-list-pusher-tg-bot/install_dir`).
 
 ### Обновление и удаление
 
@@ -241,13 +245,14 @@ curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/
 Или из папки проекта:
 
 ```bash
-~/signbox-list-pusher-tg-bot/scripts/update.sh
+cd /opt/tg-bot
+./scripts/update.sh
 ```
 
-Если проект установлен в другую папку:
+Если вы не в папке проекта:
 
 ```bash
-INSTALL_DIR=~/bots/tg-pusher curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/main/scripts/update.sh | bash
+INSTALL_DIR=/opt/tg-bot curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/main/scripts/update.sh | bash
 ```
 
 **Полное удаление** бота (контейнеры и образы с именами из `docker-compose.yml`; опционально — папка проекта):
@@ -256,7 +261,7 @@ INSTALL_DIR=~/bots/tg-pusher curl -fsSL https://raw.githubusercontent.com/bpGusa
 curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/main/scripts/remove.sh | bash
 ```
 
-Скрипт дважды запросит подтверждение и **не затрагивает** другие Docker-контейнеры и образы на сервере.
+Скрипт дважды запросит подтверждение (для папки проекта) и **не затрагивает** другие Docker-контейнеры и образы на сервере. Также удаляется файл метки установки `~/.local/share/signbox-list-pusher-tg-bot/install_dir`.
 
 ### Ручной деплой
 
@@ -295,7 +300,7 @@ docker compose --profile prod logs -f bot
 Обновление вручную:
 
 ```bash
-cd ~/signbox-list-pusher-tg-bot
+cd /opt/tg-bot
 git pull
 docker compose --profile prod up -d --build
 ```

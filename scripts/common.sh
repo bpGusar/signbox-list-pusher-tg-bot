@@ -9,14 +9,55 @@ readonly BOT_IMAGE_DEV="signbox-list-pusher-tg-bot-dev"
 
 readonly DEFAULT_REPO_URL="https://github.com/bpGusar/signbox-list-pusher-tg-bot.git"
 readonly DEFAULT_REPO_BRANCH="main"
-readonly DEFAULT_INSTALL_DIR="${HOME}/signbox-list-pusher-tg-bot"
+readonly INSTALL_MARKER_FILE="${HOME}/.local/share/signbox-list-pusher-tg-bot/install_dir"
 
 info() { printf '==> %s\n' "$*"; }
 warn() { printf '!!> %s\n' "$*" >&2; }
 die() { warn "$*"; exit 1; }
 
 default_install_dir() {
-  printf '%s\n' "${INSTALL_DIR:-${DEFAULT_INSTALL_DIR}}"
+  if [[ -n "${INSTALL_DIR:-}" ]]; then
+    cd "${INSTALL_DIR}" && pwd
+    return 0
+  fi
+
+  pwd
+}
+
+save_install_dir_marker() {
+  local install_dir="$1"
+  mkdir -p "$(dirname "${INSTALL_MARKER_FILE}")"
+  printf '%s\n' "${install_dir}" >"${INSTALL_MARKER_FILE}"
+}
+
+remove_install_dir_marker() {
+  local marker_dir
+  marker_dir="$(dirname "${INSTALL_MARKER_FILE}")"
+
+  if [[ -f "${INSTALL_MARKER_FILE}" ]]; then
+    rm -f "${INSTALL_MARKER_FILE}"
+    info "Удалён файл метки установки: ${INSTALL_MARKER_FILE}"
+  fi
+
+  if [[ -d "${marker_dir}" && -z "$(ls -A "${marker_dir}" 2>/dev/null)" ]]; then
+    rmdir "${marker_dir}" 2>/dev/null || true
+  fi
+}
+
+find_saved_install_dir() {
+  local install_dir=""
+
+  if [[ ! -f "${INSTALL_MARKER_FILE}" ]]; then
+    return 1
+  fi
+
+  install_dir="$(tr -d '\n' <"${INSTALL_MARKER_FILE}")"
+  if [[ -f "${install_dir}/docker-compose.yml" ]]; then
+    printf '%s\n' "${install_dir}"
+    return 0
+  fi
+
+  return 1
 }
 
 script_path() {
@@ -93,6 +134,11 @@ resolve_repo_root() {
     return 0
   fi
 
+  if repo_root="$(find_saved_install_dir)"; then
+    printf '%s\n' "${repo_root}"
+    return 0
+  fi
+
   if repo_root="$(find_installed_repo_root)"; then
     printf '%s\n' "${repo_root}"
     return 0
@@ -140,8 +186,10 @@ clone_or_update_repo() {
     return 0
   fi
 
-  if [[ -e "${install_dir}" ]]; then
-    die "Путь ${install_dir} уже существует, но это не git-репозиторий. Укажите другой INSTALL_DIR."
+  if [[ -e "${install_dir}" && ! -d "${install_dir}/.git" ]]; then
+    if [[ -n "$(ls -A "${install_dir}" 2>/dev/null)" ]]; then
+      die "Папка ${install_dir} не пуста. Создайте пустую папку, перейдите в неё (cd) и запустите установку снова."
+    fi
   fi
 
   info "Клонирую репозиторий..."
