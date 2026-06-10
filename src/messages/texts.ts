@@ -5,7 +5,7 @@ import type { EntryType } from "../utils/validation";
 export const TEXTS = {
   start: {
     prompt:
-      "Отправьте домен в формате `example.com` или IP/CIDR.\nНесколько значений — через запятую: `test1.com,test2.com` или `1.2.3.4,10.0.0.0/8`",
+      "Отправьте домен в формате `example.com` или IP/CIDR.\nНесколько значений — через запятую: `test1.com,test2.com` или `1.2.3.4,10.0.0.0/8`\n\nПосле ввода выберите действие: добавить, отключить (`//`) или удалить.",
     checkFailedReason: (reason: string) => `Причина: ${reason}`,
   },
 
@@ -105,8 +105,20 @@ export const TEXTS = {
         "",
         "Пример: `test1.com,test.test1.com` или `1.2.3.4,10.0.0.0/8`",
       ].join("\n"),
+    confirmPrompt: (type: EntryType, values: string[]) =>
+      [
+        `Получены записи (${TEXTS.entry.typeLabel(type)}):`,
+        ...values.map((value) => `• \`${value}\``),
+        "",
+        "Выберите действие:",
+      ].join("\n"),
+    actionExpired:
+      "Действие устарело. Отправьте записи заново и выберите действие.",
+    actionAlreadyHandled: "Действие уже выполняется или выполнено.",
+    confirmActionInProgress: (actionLabel: string) =>
+      `⏳ Выполняется: ${actionLabel}`,
     checking: (values: string[]) =>
-      `⏳ Проверяем: ${values.map((value) => `\`${value}\``).join(", ")}...`,
+      `⏳ Обрабатываем: ${values.map((value) => `\`${value}\``).join(", ")}...`,
     allExist: (type: EntryType, values: string[]) =>
       [
         type === "domain"
@@ -125,6 +137,131 @@ export const TEXTS = {
       }
 
       return lines.join("\n");
+    },
+    actionFailed: (
+      actionLabel: string,
+      values: string[],
+      reason: string,
+      sessionReset = false,
+    ) => {
+      const lines = [
+        `❌ Не удалось выполнить действие «${actionLabel}» для: ${values.map((value) => `\`${value}\``).join(", ")}.`,
+        `Причина: ${reason}`,
+      ];
+
+      if (sessionReset) {
+        lines.push("", TEXTS.entry.sessionResetHint);
+      }
+
+      return lines.join("\n");
+    },
+    disabled: (
+      fileName: string,
+      changes: string[],
+      skipped: string[] = [],
+      notFound: string[] = [],
+    ) => {
+      const lines = ["✅ Записи отключены"];
+
+      if (skipped.length > 0) {
+        lines.push(
+          "",
+          "Уже были отключены:",
+          ...skipped.map((value) => `  ${value}`),
+        );
+      }
+
+      if (notFound.length > 0) {
+        lines.push(
+          "",
+          "Не найдены в списке:",
+          ...notFound.map((value) => `  ${value}`),
+        );
+      }
+
+      lines.push(
+        "",
+        `Изменённый список: ${fileName}`,
+        "Изменения:",
+        ...changes.map((change) => `  ${change}`),
+      );
+
+      return lines.join("\n");
+    },
+    disabledNone: (
+      type: EntryType,
+      skipped: string[] = [],
+      notFound: string[] = [],
+    ) => {
+      const lines = [
+        type === "domain"
+          ? "Ни один домен не был отключён."
+          : "Ни один IP не был отключён.",
+      ];
+
+      if (skipped.length > 0) {
+        lines.push(
+          "",
+          "Уже были отключены:",
+          ...skipped.map((value) => `  ${value}`),
+        );
+      }
+
+      if (notFound.length > 0) {
+        lines.push(
+          "",
+          "Не найдены в списке:",
+          ...notFound.map((value) => `  ${value}`),
+        );
+      }
+
+      return lines.join("\n");
+    },
+    removed: (
+      fileName: string,
+      changes: string[],
+      notFound: string[] = [],
+    ) => {
+      const lines = ["✅ Записи удалены"];
+
+      if (notFound.length > 0) {
+        lines.push(
+          "",
+          "Не найдены в списке:",
+          ...notFound.map((value) => `  ${value}`),
+        );
+      }
+
+      lines.push(
+        "",
+        `Изменённый список: ${fileName}`,
+        "Изменения:",
+        ...changes.map((change) => `  ${change}`),
+      );
+
+      return lines.join("\n");
+    },
+    removedNone: (type: EntryType, notFound: string[] = []) => {
+      const lines = [
+        type === "domain"
+          ? "Ни один домен не был удалён."
+          : "Ни один IP не был удалён.",
+      ];
+
+      if (notFound.length > 0) {
+        lines.push(
+          "",
+          "Не найдены в списке:",
+          ...notFound.map((value) => `  ${value}`),
+        );
+      }
+
+      return lines.join("\n");
+    },
+    actionLabels: {
+      add: "Добавить",
+      disable: "Отключить",
+      delete: "Удалить",
     },
     sessionResetHint:
       "Сессия сброшена. Обновите `GITHUB_TOKEN` и выполните /start.",

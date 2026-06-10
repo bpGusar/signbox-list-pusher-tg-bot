@@ -1,12 +1,13 @@
 import TelegramBot from "node-telegram-bot-api";
-import { addManyToList } from "../../github/lists";
+import { buildEntryActionKeyboard } from "../../messages/entryKeyboard";
+import { removeInlineKeyboard } from "../../messages/entryConfirmMessage";
 import { TEXTS } from "../../messages/texts";
-import { clearSession } from "../../state/sessions";
 import {
-  getErrorReason,
-  isFileTooLargeError,
-  isGithubAuthError,
-} from "../../utils/errorReason";
+  getPendingMessageId,
+  getSession,
+  setPendingEntries,
+  setPendingMessageId,
+} from "../../state/sessions";
 import { parseEntries } from "../../utils/validation";
 
 export const awaitingEnterDomainHandler = async (
@@ -28,57 +29,23 @@ export const awaitingEnterDomainHandler = async (
     return;
   }
 
+  const previousMessageId = getPendingMessageId(getSession(chatId));
+
   const { type, values } = parsed;
+  const actionId = setPendingEntries(chatId, type, values);
 
-  try {
-    await bot.sendMessage(chatId, TEXTS.entry.checking(values), {
-      parse_mode: "Markdown",
-    });
-
-    const result = await addManyToList(type, values);
-
-    switch (result.status) {
-      case "file_not_found": {
-        await bot.sendMessage(
-          chatId,
-          TEXTS.files.notFoundOnAdd(result.fileName),
-        );
-        return;
-      }
-
-      case "all_exist": {
-        await bot.sendMessage(
-          chatId,
-          TEXTS.entry.allExist(result.type, result.skipped),
-          { parse_mode: "Markdown" },
-        );
-        return;
-      }
-
-      case "added": {
-        await bot.sendMessage(
-          chatId,
-          TEXTS.entry.added(result.fileName, result.changes, result.skipped),
-        );
-        return;
-      }
-    }
-  } catch (error) {
-    const reason = isFileTooLargeError(error)
-      ? TEXTS.files.tooLarge(error.path, error.sizeBytes)
-      : getErrorReason(error);
-    const sessionReset = isGithubAuthError(error);
-
-    if (sessionReset) {
-      clearSession(chatId);
-    }
-
-    console.error("Add entry failed:", error);
-
-    await bot.sendMessage(
-      chatId,
-      TEXTS.entry.addFailed(values, reason, sessionReset),
-      { parse_mode: "Markdown" },
-    );
+  if (previousMessageId) {
+    await removeInlineKeyboard(bot, chatId, previousMessageId);
   }
+
+  const sent = await bot.sendMessage(
+    chatId,
+    TEXTS.entry.confirmPrompt(type, values),
+    {
+      parse_mode: "Markdown",
+      reply_markup: buildEntryActionKeyboard(actionId),
+    },
+  );
+
+  setPendingMessageId(chatId, sent.message_id);
 };

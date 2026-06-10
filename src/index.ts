@@ -1,8 +1,9 @@
 import TelegramBot from "node-telegram-bot-api";
 import "dotenv/config";
+import { callbackQueryHandler } from "./handlers/callback";
+import { sessiontStepHandler } from "./handlers/message";
 import { startMessage } from "./messages/startMessage";
 import { getSession } from "./state/sessions";
-import { sessiontStepHandler } from "./handlers/message";
 
 const token = process.env.BOT_TOKEN;
 
@@ -28,6 +29,10 @@ bot.on("message", (msg) => {
   if (!session) return;
 
   sessiontStepHandler(bot, chatId, session, text);
+});
+
+bot.on("callback_query", (query) => {
+  callbackQueryHandler(bot, query);
 });
 
 console.log("Bot is running...");

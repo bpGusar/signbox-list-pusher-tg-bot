@@ -17,6 +17,9 @@ export {
 export {
   addManyToList,
   addToList,
+  disableManyInList,
+  removeManyFromList,
   type AddManyToListResult,
   type AddToListResult,
+  type ModifyManyInListResult,
 } from "./lists";

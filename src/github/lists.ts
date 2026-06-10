@@ -33,6 +33,25 @@ export type AddManyToListResult =
       changes: string[];
     };
 
+export type ModifyManyInListResult =
+  | { status: "file_not_found"; fileName: string }
+  | {
+      status: "no_changes";
+      fileName: string;
+      type: EntryType;
+      skipped: string[];
+      notFound: string[];
+    }
+  | {
+      status: "modified";
+      fileName: string;
+      type: EntryType;
+      affected: string[];
+      skipped: string[];
+      notFound: string[];
+      changes: string[];
+    };
+
 function getListFileName(type: EntryType): string {
   return type === "domain" ? DOMAIN_LIST_FILE : IP_LIST_FILE;
 }
@@ -97,11 +116,55 @@ function entryExists(
   value: string,
   type: EntryType,
 ): boolean {
-  return entries.some((entry) =>
-    type === "domain"
-      ? entry.toLowerCase() === value.toLowerCase()
-      : entry === value,
-  );
+  return findEntryIndex(entries, value, type) !== -1;
+}
+
+function stripDisablePrefix(entry: string): string {
+  const match = entry.match(/^\s*\/\/\s*(.+)$/);
+  return match ? match[1].trim() : entry.trim();
+}
+
+function isDisabledEntry(entry: string): boolean {
+  return /^\s*\/\//.test(entry);
+}
+
+function entriesMatch(
+  entry: string,
+  value: string,
+  type: EntryType,
+): boolean {
+  const strippedEntry = stripDisablePrefix(entry);
+  const normalizedEntry = normalizeEntryValue(strippedEntry, type);
+  const normalizedValue = normalizeEntryValue(value, type);
+  return normalizedEntry === normalizedValue;
+}
+
+function findEntryIndex(
+  entries: string[],
+  value: string,
+  type: EntryType,
+): number {
+  return entries.findIndex((entry) => entriesMatch(entry, value, type));
+}
+
+function formatDisabledEntry(value: string, type: EntryType): string {
+  return `// ${normalizeEntryValue(value, type)}`;
+}
+
+async function withConflictRetry<T>(operation: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; attempt <= CONFLICT_MAX_ATTEMPTS; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (isConflictError(error) && attempt < CONFLICT_MAX_ATTEMPTS) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw new Error("withConflictRetry: unreachable");
 }
 
 function isConflictError(error: unknown): boolean {
@@ -119,22 +182,34 @@ async function addManyToListOnce(
     return { status: "file_not_found", fileName };
   }
 
-  const entries = parseListContent(file.content).map((entry) =>
-    normalizeEntryValue(entry, type),
-  );
+  const entries = parseListContent(file.content);
   const added: string[] = [];
   const skipped: string[] = [];
+  const changes: string[] = [];
 
   for (const value of values) {
     const normalizedValue = normalizeEntryValue(value, type);
+    const index = findEntryIndex(entries, normalizedValue, type);
 
-    if (entryExists(entries, normalizedValue, type)) {
-      skipped.push(normalizedValue);
+    if (index === -1) {
+      entries.push(normalizedValue);
+      added.push(normalizedValue);
+      changes.push(`+ ${normalizedValue}`);
       continue;
     }
 
-    entries.push(normalizedValue);
-    added.push(normalizedValue);
+    const current = entries[index];
+
+    if (isDisabledEntry(current)) {
+      entries[index] = normalizedValue;
+      added.push(normalizedValue);
+      changes.push(
+        `~ ${formatDisabledEntry(normalizedValue, type)} → ${normalizedValue}`,
+      );
+      continue;
+    }
+
+    skipped.push(normalizedValue);
   }
 
   const prepared = prepareEntriesForWrite(entries, type);
@@ -166,7 +241,7 @@ async function addManyToListOnce(
     type,
     added,
     skipped,
-    changes: added.map((value) => `+ ${value}`),
+    changes,
   };
 }
 
@@ -174,19 +249,150 @@ export async function addManyToList(
   type: EntryType,
   values: string[],
 ): Promise<AddManyToListResult> {
-  for (let attempt = 1; attempt <= CONFLICT_MAX_ATTEMPTS; attempt++) {
-    try {
-      return await addManyToListOnce(type, values);
-    } catch (error) {
-      if (isConflictError(error) && attempt < CONFLICT_MAX_ATTEMPTS) {
-        continue;
-      }
+  return withConflictRetry(() => addManyToListOnce(type, values));
+}
 
-      throw error;
-    }
+async function disableManyInListOnce(
+  type: EntryType,
+  values: string[],
+): Promise<ModifyManyInListResult> {
+  const fileName = getListFileName(type);
+  const file = await getFileIfExists(fileName);
+
+  if (!file) {
+    return { status: "file_not_found", fileName };
   }
 
-  throw new Error("addManyToList: unreachable");
+  const entries = parseListContent(file.content);
+  const affected: string[] = [];
+  const skipped: string[] = [];
+  const notFound: string[] = [];
+  const changes: string[] = [];
+
+  for (const value of values) {
+    const index = findEntryIndex(entries, value, type);
+
+    if (index === -1) {
+      notFound.push(normalizeEntryValue(value, type));
+      continue;
+    }
+
+    const current = entries[index];
+
+    if (isDisabledEntry(current)) {
+      skipped.push(normalizeEntryValue(value, type));
+      continue;
+    }
+
+    const normalizedValue = normalizeEntryValue(
+      stripDisablePrefix(current),
+      type,
+    );
+    const disabledEntry = formatDisabledEntry(normalizedValue, type);
+    entries[index] = disabledEntry;
+    affected.push(normalizedValue);
+    changes.push(`~ ${normalizedValue} → ${disabledEntry}`);
+  }
+
+  if (affected.length === 0) {
+    return { status: "no_changes", fileName, type, skipped, notFound };
+  }
+
+  const prepared = prepareEntriesForWrite(entries, type);
+  const newContent = serializeList(prepared);
+  const commitMessage =
+    type === "domain"
+      ? `Disable ${affected.length} domain${affected.length === 1 ? "" : "s"}`
+      : `Disable ${affected.length} IP${affected.length === 1 ? "" : "s"}`;
+
+  await updateFile(fileName, newContent, file.sha, commitMessage);
+
+  return {
+    status: "modified",
+    fileName,
+    type,
+    affected,
+    skipped,
+    notFound,
+    changes,
+  };
+}
+
+async function removeManyFromListOnce(
+  type: EntryType,
+  values: string[],
+): Promise<ModifyManyInListResult> {
+  const fileName = getListFileName(type);
+  const file = await getFileIfExists(fileName);
+
+  if (!file) {
+    return { status: "file_not_found", fileName };
+  }
+
+  const entries = parseListContent(file.content);
+  const affected: string[] = [];
+  const notFound: string[] = [];
+  const changes: string[] = [];
+
+  for (const value of values) {
+    const index = findEntryIndex(entries, value, type);
+
+    if (index === -1) {
+      notFound.push(normalizeEntryValue(value, type));
+      continue;
+    }
+
+    const removed = normalizeEntryValue(
+      stripDisablePrefix(entries[index]),
+      type,
+    );
+    entries.splice(index, 1);
+    affected.push(removed);
+    changes.push(`- ${removed}`);
+  }
+
+  if (affected.length === 0) {
+    return {
+      status: "no_changes",
+      fileName,
+      type,
+      skipped: [],
+      notFound,
+    };
+  }
+
+  const prepared = prepareEntriesForWrite(entries, type);
+  const newContent = serializeList(prepared);
+  const commitMessage =
+    type === "domain"
+      ? `Remove ${affected.length} domain${affected.length === 1 ? "" : "s"}`
+      : `Remove ${affected.length} IP${affected.length === 1 ? "" : "s"}`;
+
+  await updateFile(fileName, newContent, file.sha, commitMessage);
+
+  return {
+    status: "modified",
+    fileName,
+    type,
+    affected,
+    skipped: [],
+    notFound,
+    changes,
+  };
+}
+
+export async function disableManyInList(
+  type: EntryType,
+  values: string[],
+): Promise<ModifyManyInListResult> {
+  return withConflictRetry(() => disableManyInListOnce(type, values));
+}
+
+export async function removeManyFromList(
+  type: EntryType,
+  values: string[],
+): Promise<ModifyManyInListResult> {
+  return withConflictRetry(() => removeManyFromListOnce(type, values));
 }
 
 export async function addToList(
