@@ -1,0 +1,37 @@
+{
+  "name": "domains_changer",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "yarn@4.14.1",
+  "scripts": {
+    "dev": "concurrently -n bot,types,lint -c green,blue,yellow \"tsx watch --clear-screen=false --include .env src/index.ts\" \"tsc --watch --noEmit --preserveWatchOutput\" \"eslint . --watch\"",
+    "dev:bot": "tsx watch --clear-screen=false --include .env src/index.ts",
+    "dev:types": "tsc --watch --noEmit --preserveWatchOutput",
+    "dev:lint": "eslint . --watch",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "tsc --noEmit && eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "dependencies": {
+    "axios": "^1.17.0",
+    "dotenv": "^17.4.2",
+    "node-telegram-bot-api": "^0.67.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.9.2",
+    "@types/node-telegram-bot-api": "^0.64.14",
+    "concurrently": "^9.2.1",
+    "eslint": "^10.4.1",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.6.0",
+    "prettier": "^3.8.4",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.0"
+  }
+}
