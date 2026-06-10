@@ -4,7 +4,8 @@ import type { EntryType } from "../utils/validation";
 
 export const TEXTS = {
   start: {
-    prompt: "Отправьте домен в формате `example.com` или IP",
+    prompt:
+      "Отправьте домен в формате `example.com` или IP/CIDR.\nНесколько значений — через запятую: `test1.com,test2.com` или `1.2.3.4,10.0.0.0/8`",
     checkFailedReason: (reason: string) => `Причина: ${reason}`,
   },
 
@@ -13,7 +14,7 @@ export const TEXTS = {
     steps: {
       env: "Переменные окружения GitHub",
       repo: "Доступ к репозиторию",
-      permissions: "Права на запись",
+      permissions: "Права на запись в репозиторий",
       branch: (branch: string) => `Ветка \`${branch}\``,
       domainFile: `Файл \`${DOMAIN_LIST_FILE}\` в корне репозитория`,
       ipFile: `Файл \`${IP_LIST_FILE}\` в корне репозитория`,
@@ -52,7 +53,7 @@ export const TEXTS = {
         case "no_push":
           return [
             "❌ Недостаточно прав для записи в репозиторий.",
-            "Токену нужны права на чтение и запись (push) в репозиторий.",
+            "Для fine-grained токена включите Repository permissions → Contents: Read and write.",
           ].join("\n");
         case "branch_not_found":
           return [
@@ -81,25 +82,76 @@ export const TEXTS = {
         "Создайте недостающие файлы и повторите команду /start.",
         "Добавление доменов и IP недоступно, пока файлы отсутствуют.",
       ].join("\n"),
+    tooLarge: (fileName: string, sizeBytes: number) => {
+      const sizeMb = (sizeBytes / (1024 * 1024)).toFixed(2);
+
+      return [
+        `❌ Файл \`${fileName}\` слишком большой (${sizeMb} МБ).`,
+        "Лимит GitHub Contents API — 1 МБ.",
+        "Добавление через бота недоступно, пока файл не уменьшится.",
+      ].join("\n");
+    },
   },
 
   entry: {
     invalidFormat:
-      "Некорректный формат. Отправьте домен в формате `example.com` или IP",
-    checking: (typeLabel: string, value: string) =>
-      `⏳ Проверяем ${typeLabel} \`${value}\`...`,
-    domainExists: "Такой домен уже существует в списке",
-    ipExists: "Такой IP уже существует в списке",
-    addFailed: (typeLabel: string, value: string) =>
-      `❌ Не удалось добавить ${typeLabel} \`${value}\`. Попробуйте позже.`,
-    typeLabel: (type: EntryType) => (type === "domain" ? "домен" : "IP"),
-    added: (fileName: string, changes: string[]) =>
+      "Некорректный формат. Отправьте домен `example.com` или IP/CIDR.\nНесколько значений — через запятую: `test1.com,test2.com` или `1.2.3.4,10.0.0.0/8`",
+    mixedTypes:
+      "Нельзя смешивать домены и IP в одном сообщении. Отправьте только домены или только IP.",
+    invalidItems: (items: string[]) =>
       [
-        "✅ Успешно добавлено",
+        "Некорректные значения:",
+        ...items.map((item) => `• \`${item}\``),
+        "",
+        "Пример: `test1.com,test.test1.com` или `1.2.3.4,10.0.0.0/8`",
+      ].join("\n"),
+    checking: (values: string[]) =>
+      `⏳ Проверяем: ${values.map((value) => `\`${value}\``).join(", ")}...`,
+    allExist: (type: EntryType, values: string[]) =>
+      [
+        type === "domain"
+          ? "Все домены уже есть в списке:"
+          : "Все IP уже есть в списке:",
+        ...values.map((value) => `• \`${value}\``),
+      ].join("\n"),
+    addFailed: (values: string[], reason: string, sessionReset = false) => {
+      const lines = [
+        `❌ Не удалось добавить: ${values.map((value) => `\`${value}\``).join(", ")}.`,
+        `Причина: ${reason}`,
+      ];
+
+      if (sessionReset) {
+        lines.push("", TEXTS.entry.sessionResetHint);
+      }
+
+      return lines.join("\n");
+    },
+    sessionResetHint:
+      "Сессия сброшена. Обновите `GITHUB_TOKEN` и выполните /start.",
+    typeLabel: (type: EntryType) => (type === "domain" ? "домен" : "IP"),
+    added: (
+      fileName: string,
+      changes: string[],
+      skipped: string[] = [],
+    ) => {
+      const lines = ["✅ Успешно добавлено"];
+
+      if (skipped.length > 0) {
+        lines.push(
+          "",
+          "Пропущено (уже в списке):",
+          ...skipped.map((value) => `  ${value}`),
+        );
+      }
+
+      lines.push(
         "",
         `Изменённый список: ${fileName}`,
         "Изменения:",
         ...changes.map((change) => `  ${change}`),
-      ].join("\n"),
+      );
+
+      return lines.join("\n");
+    },
   },
 } as const;

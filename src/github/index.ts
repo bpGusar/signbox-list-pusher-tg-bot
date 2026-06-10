@@ -6,9 +6,17 @@ export {
   type ListFilesCheckResult,
 } from "./access";
 export {
+  assertContentSize,
+  FileTooLargeError,
   getFile,
   getFileIfExists,
+  MAX_CONTENTS_FILE_SIZE,
   updateFile,
   type GithubFile,
 } from "./files";
-export { addToList, type AddToListResult } from "./lists";
+export {
+  addManyToList,
+  addToList,
+  type AddManyToListResult,
+  type AddToListResult,
+} from "./lists";

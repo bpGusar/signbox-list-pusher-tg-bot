@@ -1,30 +1,41 @@
 import TelegramBot from "node-telegram-bot-api";
-import { addToList } from "../../github/lists";
+import { addManyToList } from "../../github/lists";
 import { TEXTS } from "../../messages/texts";
-import { parseEntry } from "../../utils/validation";
+import { clearSession } from "../../state/sessions";
+import {
+  getErrorReason,
+  isFileTooLargeError,
+  isGithubAuthError,
+} from "../../utils/errorReason";
+import { parseEntries } from "../../utils/validation";
 
 export const awaitingEnterDomainHandler = async (
   bot: TelegramBot,
   chatId: number,
   text: string,
 ) => {
-  const entry = parseEntry(text);
+  const parsed = parseEntries(text);
 
-  if (!entry) {
-    await bot.sendMessage(chatId, TEXTS.entry.invalidFormat, {
-      parse_mode: "Markdown",
-    });
+  if (!parsed.ok) {
+    const message =
+      parsed.reason === "mixed_types"
+        ? TEXTS.entry.mixedTypes
+        : parsed.reason === "invalid" && parsed.invalid.length > 0
+          ? TEXTS.entry.invalidItems(parsed.invalid)
+          : TEXTS.entry.invalidFormat;
+
+    await bot.sendMessage(chatId, message, { parse_mode: "Markdown" });
     return;
   }
 
-  const typeLabel = TEXTS.entry.typeLabel(entry.type);
+  const { type, values } = parsed;
 
   try {
-    await bot.sendMessage(chatId, TEXTS.entry.checking(typeLabel, entry.value), {
+    await bot.sendMessage(chatId, TEXTS.entry.checking(values), {
       parse_mode: "Markdown",
     });
 
-    const result = await addToList(entry.type, entry.value);
+    const result = await addManyToList(type, values);
 
     switch (result.status) {
       case "file_not_found": {
@@ -35,28 +46,38 @@ export const awaitingEnterDomainHandler = async (
         return;
       }
 
-      case "already_exists": {
-        const message =
-          result.type === "domain"
-            ? TEXTS.entry.domainExists
-            : TEXTS.entry.ipExists;
-
-        await bot.sendMessage(chatId, message);
+      case "all_exist": {
+        await bot.sendMessage(
+          chatId,
+          TEXTS.entry.allExist(result.type, result.skipped),
+          { parse_mode: "Markdown" },
+        );
         return;
       }
 
       case "added": {
         await bot.sendMessage(
           chatId,
-          TEXTS.entry.added(result.fileName, result.changes),
+          TEXTS.entry.added(result.fileName, result.changes, result.skipped),
         );
         return;
       }
     }
-  } catch {
+  } catch (error) {
+    const reason = isFileTooLargeError(error)
+      ? TEXTS.files.tooLarge(error.path, error.sizeBytes)
+      : getErrorReason(error);
+    const sessionReset = isGithubAuthError(error);
+
+    if (sessionReset) {
+      clearSession(chatId);
+    }
+
+    console.error("Add entry failed:", error);
+
     await bot.sendMessage(
       chatId,
-      TEXTS.entry.addFailed(typeLabel, entry.value),
+      TEXTS.entry.addFailed(values, reason, sessionReset),
       { parse_mode: "Markdown" },
     );
   }

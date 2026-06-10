@@ -6,7 +6,10 @@ import {
   checkRepositoryAccess,
 } from "../github/access";
 import { clearSession, setSession } from "../state/sessions";
-import { getErrorReason } from "../utils/errorReason";
+import {
+  getErrorReason,
+  isFileTooLargeError,
+} from "../utils/errorReason";
 import {
   CheckProgressReporter,
   getDefaultBranch,
@@ -84,14 +87,18 @@ export const startMessage = async (bot: TelegramBot, chatId: number) => {
     await progress.finish(lines.join("\n"));
   } catch (error) {
     clearSession(chatId);
-    const reason = getErrorReason(error);
+    const reason = isFileTooLargeError(error)
+      ? TEXTS.files.tooLarge(error.path, error.sizeBytes)
+      : getErrorReason(error);
     console.error("Start check failed:", error);
 
     progress.stopSpinner();
     await progress.finish(
       TEXTS.checkProgress.withError(
         progress.getProgressText(TEXTS.checkProgress.failedHeader),
-        TEXTS.start.checkFailedReason(reason),
+        isFileTooLargeError(error)
+          ? reason
+          : TEXTS.start.checkFailedReason(reason),
       ),
     );
   }

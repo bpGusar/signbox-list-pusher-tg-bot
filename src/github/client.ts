@@ -8,6 +8,7 @@ type GithubConfig = {
 };
 
 let githubApi: AxiosInstance | undefined;
+let cachedToken: string | undefined;
 
 function getGithubConfig(): GithubConfig {
   const token = process.env.GITHUB_TOKEN;
@@ -25,8 +26,10 @@ function getGithubConfig(): GithubConfig {
 }
 
 export function getGithubApi(): AxiosInstance {
-  if (!githubApi) {
-    const { token } = getGithubConfig();
+  const { token } = getGithubConfig();
+
+  if (!githubApi || cachedToken !== token) {
+    cachedToken = token;
     githubApi = axios.create({
       baseURL: "https://api.github.com",
       headers: {
