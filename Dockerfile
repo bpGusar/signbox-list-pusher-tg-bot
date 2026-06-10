@@ -4,7 +4,6 @@ FROM node:22-alpine AS base
 WORKDIR /app
 RUN corepack enable
 COPY package.json yarn.lock .yarnrc.yml ./
-COPY .yarn .yarn
 
 FROM base AS deps
 RUN yarn install --immutable
