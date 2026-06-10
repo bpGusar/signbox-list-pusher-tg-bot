@@ -1,6 +1,8 @@
 # domains_changer
 
-Telegram-бот на Node.js с [node-telegram-bot-api](https://github.com/yagop/node-telegram-bot-api).
+Telegram-бот для добавления доменов и IP/CIDR в списки GitHub-репозитория (`domain_list.srs`, `ip_list.srs`).
+
+Стек: Node.js, [node-telegram-bot-api](https://github.com/yagop/node-telegram-bot-api), GitHub Contents API.
 
 ## Требования
 
@@ -17,7 +19,9 @@ yarn install
 ## Настройка
 
 1. Создайте бота через [@BotFather](https://t.me/BotFather) и получите токен.
-2. Скопируйте `.env.example` в `.env` и укажите токен:
+2. Создайте fine-grained или classic GitHub token с правом **Contents: Read and write** для целевого репозитория.
+3. В корне репозитория должны существовать файлы `domain_list.srs` и `ip_list.srs`.
+4. Скопируйте `.env.example` в `.env` и заполните переменные:
 
 ```bash
 cp .env.example .env
@@ -25,7 +29,20 @@ cp .env.example .env
 
 ```env
 BOT_TOKEN=123456:ABC-DEF...
+GITHUB_TOKEN=ghp_...
+GITHUB_USERNAME=your_username
+GITHUB_REPO=your_repo
+GITHUB_BRANCH=main
 ```
+
+## Использование
+
+1. Отправьте боту `/start` — он проверит доступ к GitHub и наличие файлов списков.
+2. Отправьте домен (`example.com`) или IP/CIDR (`1.2.3.4`, `10.0.0.0/8`).
+3. Несколько значений в одном сообщении — через запятую: `test1.com,test2.com` или `1.2.3.4,10.0.0.0/8`.
+4. Домены и IP нельзя смешивать в одном сообщении.
+
+При добавлении бот создаёт лаконичный коммит с количеством новых записей, например: `Add 3 domains`, `Add 1 IP`.
 
 ## Запуск локально
 
@@ -122,6 +139,7 @@ docker compose --profile dev down
 
 ### Полезные Docker-команды
 
+
 | Команда                                        | Описание                              |
 | ---------------------------------------------- | ------------------------------------- |
 | `docker compose --profile prod up -d --build`  | Запуск production-бота                |
@@ -132,3 +150,5 @@ docker compose --profile dev down
 | `docker compose --profile prod down`           | Остановить production                 |
 | `docker compose --profile dev down`            | Остановить dev                        |
 | `docker compose build --no-cache`              | Полная пересборка образа              |
+
+

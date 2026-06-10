@@ -153,20 +153,12 @@ async function addManyToListOnce(
     return { status: "all_exist", fileName, type, skipped };
   }
 
-  const commitLabel = type === "domain" ? "domain" : "IP";
-  const commitSummary =
-    added.length === 1
-      ? added[0]
-      : type === "domain"
-        ? `${added.length} domains: ${added.join(", ")}`
-        : `${added.length} IPs: ${added.join(", ")}`;
+  const commitMessage =
+    type === "domain"
+      ? `Add ${added.length} domain${added.length === 1 ? "" : "s"}`
+      : `Add ${added.length} IP${added.length === 1 ? "" : "s"}`;
 
-  await updateFile(
-    fileName,
-    newContent,
-    file.sha,
-    `Add ${commitLabel}: ${commitSummary}`,
-  );
+  await updateFile(fileName, newContent, file.sha, commitMessage);
 
   return {
     status: "added",
