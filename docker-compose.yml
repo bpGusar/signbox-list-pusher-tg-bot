@@ -1,0 +1,39 @@
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: domains-changer-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    profiles:
+      - prod
+
+  bot-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: domains-changer-bot-dev
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
+      - ./.env:/app/.env:ro
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./src
+          target: /app/src
+        - action: restart
+          path: ./.env
+        - action: rebuild
+          path: package.json
+        - action: rebuild
+          path: yarn.lock
+    profiles:
+      - dev

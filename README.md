@@ -1,1 +1,134 @@
-# podkop-list-pusher-tg-bot
+# domains_changer
+
+Telegram-бот на Node.js с [node-telegram-bot-api](https://github.com/yagop/node-telegram-bot-api).
+
+## Требования
+
+- Node.js 18+
+- Yarn 4
+- Docker и Docker Compose (для запуска в контейнере)
+
+## Установка
+
+```bash
+yarn install
+```
+
+## Настройка
+
+1. Создайте бота через [@BotFather](https://t.me/BotFather) и получите токен.
+2. Скопируйте `.env.example` в `.env` и укажите токен:
+
+```bash
+cp .env.example .env
+```
+
+```env
+BOT_TOKEN=123456:ABC-DEF...
+```
+
+## Запуск локально
+
+Разработка (с автоперезагрузкой при изменении `src/` и `.env`):
+
+```bash
+yarn dev
+```
+
+Сборка и запуск:
+
+```bash
+yarn build
+yarn start
+```
+
+Проверка типов:
+
+```bash
+yarn typecheck
+```
+
+## Запуск в Docker
+
+### Production
+
+Сборка и запуск бота в фоне:
+
+```bash
+docker compose --profile prod up -d --build
+```
+
+Просмотр логов:
+
+```bash
+docker compose --profile prod logs -f bot
+```
+
+Остановка:
+
+```bash
+docker compose --profile prod down
+```
+
+Пересборка после изменений в `package.json` или `Dockerfile`:
+
+```bash
+docker compose --profile prod up -d --build
+```
+
+### Разработка с автоподтягиванием изменений
+
+Есть два способа — выберите один.
+
+#### Способ 1: `docker compose watch` (рекомендуется на Windows)
+
+Docker Compose следит за файлами на хосте и синхронизирует `src/` в контейнер, после чего перезапускает бота. Изменения в `.env` тоже вызывают перезапуск контейнера.
+
+```bash
+docker compose --profile dev watch
+```
+
+Остановка: `Ctrl+C`.
+
+При изменении `package.json` или `yarn.lock` образ пересобирается автоматически.
+
+#### Способ 2: volume + `tsx watch`
+
+Папка `src/` монтируется в контейнер, внутри работает `tsx watch`, который перезапускает процесс при изменении файлов. Для Windows включён polling (`CHOKIDAR_USEPOLLING`).
+
+```bash
+docker compose --profile dev up --build
+```
+
+Просмотр логов:
+
+```bash
+docker compose --profile dev logs -f bot-dev
+```
+
+Остановка:
+
+```bash
+docker compose --profile dev down
+```
+
+После правок в `src/` или `.env` бот перезапустится сам — пересобирать образ не нужно.
+
+> Если изменения не подхватываются, используйте способ 1 (`docker compose watch`) или перезапустите контейнер:
+>
+> ```bash
+> docker compose --profile dev restart bot-dev
+> ```
+
+### Полезные Docker-команды
+
+| Команда                                        | Описание                              |
+| ---------------------------------------------- | ------------------------------------- |
+| `docker compose --profile prod up -d --build`  | Запуск production-бота                |
+| `docker compose --profile dev watch`           | Разработка с авто-синхронизацией кода |
+| `docker compose --profile dev up --build`      | Разработка с volume и hot-reload      |
+| `docker compose --profile prod logs -f bot`    | Логи production                       |
+| `docker compose --profile dev logs -f bot-dev` | Логи dev-контейнера                   |
+| `docker compose --profile prod down`           | Остановить production                 |
+| `docker compose --profile dev down`            | Остановить dev                        |
+| `docker compose build --no-cache`              | Полная пересборка образа              |
