@@ -185,8 +185,8 @@ docker compose --profile dev down
 1. Клонируйте репозиторий на сервер:
 
 ```bash
-git clone https://github.com/bpGusar/podkop-list-pusher-tg-bot.git
-cd podkop-list-pusher-tg-bot
+git clone https://github.com/bpGusar/signbox-list-pusher-tg-bot.git
+cd signbox-list-pusher-tg-bot
 ```
 
 Для приватного репозитория используйте SSH-ключ или deploy token.
@@ -221,7 +221,7 @@ docker compose --profile prod logs -f bot
 После изменений в репозитории на сервере:
 
 ```bash
-cd ~/podkop-list-pusher-tg-bot
+cd ~/signbox-list-pusher-tg-bot
 git pull
 docker compose --profile prod up -d --build
 ```
