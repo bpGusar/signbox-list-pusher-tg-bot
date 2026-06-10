@@ -60,6 +60,14 @@ bootstrap_install() {
   local_install="${install_dir}/scripts/install.sh"
 
   if [[ -f "${local_install}" ]]; then
+    if [[ -d "${install_dir}/.git" ]]; then
+      git -C "${install_dir}" fetch origin "${branch}" 2>/dev/null || true
+      git -C "${install_dir}" checkout "${branch}" 2>/dev/null || true
+      git -C "${install_dir}" pull --ff-only origin "${branch}" 2>/dev/null || true
+    fi
+    if [[ -r /dev/tty ]]; then
+      exec env INSTALL_DIR="${install_dir}" bash "${local_install}" "$@" </dev/tty
+    fi
     exec env INSTALL_DIR="${install_dir}" bash "${local_install}" "$@"
   fi
 
@@ -96,6 +104,9 @@ bootstrap_install() {
     exit 1
   fi
 
+  if [[ -r /dev/tty ]]; then
+    exec env INSTALL_DIR="${install_dir}" bash "${local_install}" "$@" </dev/tty
+  fi
   exec env INSTALL_DIR="${install_dir}" bash "${local_install}" "$@"
 }
 
@@ -162,9 +173,10 @@ prompt_env_value() {
 
   # curl | bash подключает stdin к pipe, а не к терминалу — читаем с /dev/tty.
   if [[ -r /dev/tty ]]; then
-    read -rp "${prompt}" value </dev/tty
+    printf '%s' "${prompt}" >/dev/tty
+    IFS= read -r value </dev/tty || true
   else
-    read -rp "${prompt}" value
+    read -rp "${prompt}" value || true
   fi
 
   if [[ -z "${value}" && -n "${default}" ]]; then
