@@ -184,9 +184,15 @@ export const TEXTS = {
 
       return lines.join("\n");
     },
+    keptDisabled: (values: string[]) =>
+      [
+        "Записи оставлены отключёнными:",
+        ...values.map((value) => `• \`${value}\``),
+      ].join("\n"),
     actions: {
       enable: "Включить",
       delete: "Удалить",
+      keep: "Оставить как есть",
     },
   },
 
@@ -259,12 +265,9 @@ export const TEXTS = {
     checking: (values: string[]) =>
       `⏳ Обрабатываем: ${values.map((value) => `\`${value}\``).join(", ")}...`,
     allExist: (type: EntryType, values: string[]) =>
-      [
-        type === "domain"
-          ? "Все домены уже есть в списке:"
-          : "Все IP уже есть в списке:",
-        ...values.map((value) => `• \`${value}\``),
-      ].join("\n"),
+      ["Уже есть в списке:", ...values.map((value) => `• \`${value}\``)].join(
+        "\n",
+      ),
     addFailed: (values: string[], reason: string, sessionReset = false) => {
       const lines = [
         `❌ Не удалось добавить: ${values.map((value) => `\`${value}\``).join(", ")}.`,

@@ -163,6 +163,24 @@ export const disabledEntryActionHandler = async (
   }
 
   const { type, values } = pending;
+
+  if (action === DISABLED_ENTRY_ACTION.KEEP) {
+    clearPendingDisabledEntries(chatId);
+
+    if (messageId) {
+      await bot.editMessageReplyMarkup(
+        { inline_keyboard: [] },
+        { chat_id: chatId, message_id: messageId },
+      );
+    }
+
+    await bot.answerCallbackQuery(callbackQueryId);
+    await bot.sendMessage(chatId, TEXTS.disabledEntries.keptDisabled(values), {
+      parse_mode: "Markdown",
+    });
+    return;
+  }
+
   const duplicateReport = await findListDuplicates(type);
 
   if (duplicateReport) {

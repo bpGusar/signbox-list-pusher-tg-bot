@@ -24,6 +24,15 @@ export function buildDisabledEntryActionKeyboard(
           ),
         },
       ],
+      [
+        {
+          text: TEXTS.disabledEntries.actions.keep,
+          callback_data: buildDisabledEntryActionCallbackData(
+            DISABLED_ENTRY_ACTION.KEEP,
+            actionId,
+          ),
+        },
+      ],
     ],
   };
 }

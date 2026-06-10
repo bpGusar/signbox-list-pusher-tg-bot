@@ -37,6 +37,7 @@ export const ENTRY_ACTION = {
 export const DISABLED_ENTRY_ACTION = {
   ENABLE: "enable",
   DELETE: "delete",
+  KEEP: "keep",
 } as const;
 
 export type {

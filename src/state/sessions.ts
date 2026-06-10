@@ -218,7 +218,7 @@ export function buildDisabledEntryActionCallbackData(
 export function parseDisabledEntryActionCallbackData(
   data: string,
 ): { action: DisabledEntryAction; actionId: string } | null {
-  const match = data.match(/^disabled:(enable|delete):([a-f0-9]{8})$/);
+  const match = data.match(/^disabled:(enable|delete|keep):([a-f0-9]{8})$/);
 
   if (!match) {
     return null;
