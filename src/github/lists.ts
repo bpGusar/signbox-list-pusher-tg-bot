@@ -1,72 +1,23 @@
 import axios from "axios";
 import { DOMAIN_LIST_FILE, IP_LIST_FILE } from "../const/files";
-import {
-  findDuplicateGroups,
-  type DuplicateGroup,
-} from "./listDuplicates";
-import type { EntryType } from "../utils/validation";
+import type { EntryType } from "../utils/types";
+import { findDuplicateGroups } from "./listDuplicates";
 import { getFileIfExists, updateFile } from "./files";
+import type {
+  AddManyToListResult,
+  AddToListResult,
+  DuplicatesInFileResult,
+  ModifyManyInListResult,
+} from "./types";
+
+export type {
+  AddManyToListResult,
+  AddToListResult,
+  DuplicatesInFileResult,
+  ModifyManyInListResult,
+} from "./types";
 
 const CONFLICT_MAX_ATTEMPTS = 3;
-
-export type AddToListResult =
-  | { status: "file_not_found"; fileName: string }
-  | DuplicatesInFileResult
-  | { status: "already_exists"; fileName: string; value: string; type: EntryType }
-  | {
-      status: "added";
-      fileName: string;
-      value: string;
-      type: EntryType;
-      changes: string[];
-    };
-
-export type DuplicatesInFileResult = {
-  status: "duplicates_in_file";
-  fileName: string;
-  type: EntryType;
-  groups: DuplicateGroup[];
-};
-
-export type AddManyToListResult =
-  | { status: "file_not_found"; fileName: string }
-  | DuplicatesInFileResult
-  | {
-      status: "all_exist";
-      fileName: string;
-      type: EntryType;
-      skipped: string[];
-      disabledInFile: string[];
-    }
-  | {
-      status: "added";
-      fileName: string;
-      type: EntryType;
-      added: string[];
-      skipped: string[];
-      disabledInFile: string[];
-      changes: string[];
-    };
-
-export type ModifyManyInListResult =
-  | { status: "file_not_found"; fileName: string }
-  | DuplicatesInFileResult
-  | {
-      status: "no_changes";
-      fileName: string;
-      type: EntryType;
-      skipped: string[];
-      notFound: string[];
-    }
-  | {
-      status: "modified";
-      fileName: string;
-      type: EntryType;
-      affected: string[];
-      skipped: string[];
-      notFound: string[];
-      changes: string[];
-    };
 
 function getListFileName(type: EntryType): string {
   return type === "domain" ? DOMAIN_LIST_FILE : IP_LIST_FILE;
@@ -92,7 +43,10 @@ function parseListContent(content: string): string[] {
 function serializeList(entries: string[]): string {
   if (entries.length === 0) return "";
 
-  return entries.map((entry) => entry.trim()).join("\n").concat("\n");
+  return entries
+    .map((entry) => entry.trim())
+    .join("\n")
+    .concat("\n");
 }
 
 function stripDisablePrefix(entry: string): string {
@@ -104,11 +58,7 @@ function isDisabledEntry(entry: string): boolean {
   return /^\s*\/\//.test(entry);
 }
 
-function entriesMatch(
-  entry: string,
-  value: string,
-  type: EntryType,
-): boolean {
+function entriesMatch(entry: string, value: string, type: EntryType): boolean {
   const strippedEntry = stripDisablePrefix(entry);
   const normalizedEntry = normalizeEntryValue(strippedEntry, type);
   const normalizedValue = normalizeEntryValue(value, type);
@@ -480,7 +430,12 @@ export async function addToList(
     case "duplicates_in_file":
       return result;
     case "all_exist":
-      return { status: "already_exists", fileName: result.fileName, value, type };
+      return {
+        status: "already_exists",
+        fileName: result.fileName,
+        value,
+        type,
+      };
     case "added":
       return {
         status: "added",

@@ -1,28 +1,15 @@
 import axios from "axios";
 import { DOMAIN_LIST_FILE, IP_LIST_FILE } from "../const/files";
-import type { CheckProgressCallback } from "../messages/checkProgress";
+import type { CheckProgressCallback } from "../messages/types";
 import { getGithubApi, getGithubEnv } from "./client";
 import { getFileIfExists } from "./files";
+import type {
+  AccessCheckResult,
+  ListFilesCheckResult,
+  RepoResponse,
+} from "./types";
 
-export type AccessCheckResult =
-  | { status: "ok"; repo: string; branch: string }
-  | { status: "env_missing" }
-  | { status: "unauthorized" }
-  | { status: "repo_not_found" }
-  | { status: "forbidden" }
-  | { status: "no_push" }
-  | { status: "branch_not_found"; branch: string }
-  | { status: "unknown"; message: string };
-
-type RepoPermissions = {
-  push?: boolean;
-  admin?: boolean;
-  maintain?: boolean;
-};
-
-type RepoResponse = {
-  permissions?: RepoPermissions;
-};
+export type { AccessCheckResult, ListFilesCheckResult } from "./types";
 
 function mapAxiosError(error: unknown): AccessCheckResult | null {
   if (!axios.isAxiosError(error)) return null;
@@ -84,10 +71,12 @@ export async function checkRepositoryAccess(
     report(onProgress, "repo", "done");
   } catch (error) {
     report(onProgress, "repo", "fail");
-    return mapAxiosError(error) ?? {
-      status: "unknown",
-      message: error instanceof Error ? error.message : String(error),
-    };
+    return (
+      mapAxiosError(error) ?? {
+        status: "unknown",
+        message: error instanceof Error ? error.message : String(error),
+      }
+    );
   }
 
   report(onProgress, "permissions", "start");
@@ -115,31 +104,23 @@ export async function checkRepositoryAccess(
     }
 
     report(onProgress, "branch", "fail");
-    return mapAxiosError(error) ?? {
-      status: "unknown",
-      message: error instanceof Error ? error.message : String(error),
-    };
+    return (
+      mapAxiosError(error) ?? {
+        status: "unknown",
+        message: error instanceof Error ? error.message : String(error),
+      }
+    );
   }
 
   return { status: "ok", repo: `${owner}/${repo}`, branch };
 }
-
-export type ListFilesCheckResult = {
-  domainListExists: boolean;
-  ipListExists: boolean;
-  allExist: boolean;
-};
 
 export async function checkListFilesExistence(
   onProgress?: CheckProgressCallback,
 ): Promise<ListFilesCheckResult> {
   report(onProgress, "domain_file", "start");
   const domainFile = await getFileIfExists(DOMAIN_LIST_FILE);
-  report(
-    onProgress,
-    "domain_file",
-    domainFile !== null ? "done" : "fail",
-  );
+  report(onProgress, "domain_file", domainFile !== null ? "done" : "fail");
 
   report(onProgress, "ip_file", "start");
   const ipFile = await getFileIfExists(IP_LIST_FILE);
@@ -154,4 +135,3 @@ export async function checkListFilesExistence(
     allExist: domainListExists && ipListExists,
   };
 }
-

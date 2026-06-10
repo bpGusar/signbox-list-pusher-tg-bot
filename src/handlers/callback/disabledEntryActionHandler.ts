@@ -19,7 +19,7 @@ import {
 } from "../../state/sessions";
 import {
   getErrorReason,
-  isFileTooLargeError,
+  getFileTooLargeDetails,
   isGithubAuthError,
 } from "../../utils/errorReason";
 
@@ -41,10 +41,7 @@ async function handleEnable(
 
   switch (result.status) {
     case "file_not_found": {
-      await bot.sendMessage(
-        chatId,
-        TEXTS.files.notFoundOnAdd(result.fileName),
-      );
+      await bot.sendMessage(chatId, TEXTS.files.notFoundOnAdd(result.fileName));
       return;
     }
 
@@ -90,10 +87,7 @@ async function handleDelete(
 
   switch (result.status) {
     case "file_not_found": {
-      await bot.sendMessage(
-        chatId,
-        TEXTS.files.notFoundOnAdd(result.fileName),
-      );
+      await bot.sendMessage(chatId, TEXTS.files.notFoundOnAdd(result.fileName));
       return;
     }
 
@@ -210,8 +204,9 @@ export const disabledEntryActionHandler = async (
         break;
     }
   } catch (error) {
-    const reason = isFileTooLargeError(error)
-      ? TEXTS.files.tooLarge(error.path, error.sizeBytes)
+    const fileTooLarge = getFileTooLargeDetails(error);
+    const reason = fileTooLarge
+      ? TEXTS.files.tooLarge(fileTooLarge.path, fileTooLarge.sizeBytes)
       : getErrorReason(error);
     const sessionReset = isGithubAuthError(error);
 

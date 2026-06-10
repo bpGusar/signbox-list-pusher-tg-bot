@@ -6,29 +6,20 @@ import {
   checkRepositoryAccess,
 } from "../github/access";
 import { getSession, setSession } from "../state/sessions";
-import {
-  getErrorReason,
-  isFileTooLargeError,
-} from "../utils/errorReason";
+import { getErrorReason, getFileTooLargeDetails } from "../utils/errorReason";
 import {
   buildRetryCheckInlineKeyboard,
   EMPTY_INLINE_KEYBOARD,
 } from "./checkKeyboard";
-import {
-  CheckProgressReporter,
-  getDefaultBranch,
-} from "./checkProgress";
+import { CheckProgressReporter, getDefaultBranch } from "./checkProgress";
+import { promptForDuplicatesIfNeeded } from "../handlers/callback/duplicateActionHandler";
 import {
   buildMainReplyKeyboard,
   ensureMainReplyKeyboard,
   markMainReplyKeyboardActive,
 } from "./mainKeyboard";
-import { promptForDuplicatesIfNeeded } from "../handlers/callback/duplicateActionHandler";
 import { TEXTS } from "./texts";
-
-type RunAccessChecksOptions = {
-  preserveSession?: boolean;
-};
+import type { RunAccessChecksOptions } from "./types";
 
 function getSessionDataForUpdate(
   chatId: number,
@@ -192,16 +183,16 @@ export async function runAccessChecks(
 
     markMainReplyKeyboardActive(chatId);
   } catch (error) {
-    const reason = isFileTooLargeError(error)
-      ? TEXTS.files.tooLarge(error.path, error.sizeBytes)
-      : getErrorReason(error);
     console.error("Start check failed:", error);
+
+    const fileTooLarge = getFileTooLargeDetails(error);
+    const errorText = fileTooLarge
+      ? TEXTS.files.tooLarge(fileTooLarge.path, fileTooLarge.sizeBytes)
+      : TEXTS.start.checkFailedReason(getErrorReason(error));
 
     const finalText = TEXTS.checkProgress.withError(
       progress.getProgressText(TEXTS.checkProgress.failedHeader),
-      isFileTooLargeError(error)
-        ? reason
-        : TEXTS.start.checkFailedReason(reason),
+      errorText,
     );
 
     setCheckSession(

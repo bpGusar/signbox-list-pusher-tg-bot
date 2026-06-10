@@ -12,7 +12,7 @@ import { TEXTS } from "../../messages/texts";
 import { getSession, setSession } from "../../state/sessions";
 import {
   getErrorReason,
-  isFileTooLargeError,
+  getFileTooLargeDetails,
 } from "../../utils/errorReason";
 
 async function continueAfterDuplicateResolution(
@@ -27,7 +27,7 @@ async function continueAfterDuplicateResolution(
       [SESSION_DATA_KEY.CHECK_PASSED]: "false",
     });
 
-    await sendDuplicatesPrompt(bot, chatId, remaining[0]!);
+    await sendDuplicatesPrompt(bot, chatId, remaining[0]);
     return;
   }
 
@@ -81,7 +81,10 @@ export async function duplicateActionHandler(
 
     switch (result.status) {
       case "file_not_found": {
-        await bot.sendMessage(chatId, TEXTS.files.notFoundOnAdd(result.fileName));
+        await bot.sendMessage(
+          chatId,
+          TEXTS.files.notFoundOnAdd(result.fileName),
+        );
         return;
       }
 
@@ -105,8 +108,9 @@ export async function duplicateActionHandler(
       }
     }
   } catch (error) {
-    const reason = isFileTooLargeError(error)
-      ? TEXTS.files.tooLarge(error.path, error.sizeBytes)
+    const fileTooLarge = getFileTooLargeDetails(error);
+    const reason = fileTooLarge
+      ? TEXTS.files.tooLarge(fileTooLarge.path, fileTooLarge.sizeBytes)
       : getErrorReason(error);
 
     console.error("Duplicate resolution failed:", error);
@@ -135,7 +139,7 @@ export async function promptForDuplicatesIfNeeded(
     [SESSION_DATA_KEY.CHECK_PASSED]: "false",
   });
 
-  await sendDuplicatesPrompt(bot, chatId, reports[0]!);
+  await sendDuplicatesPrompt(bot, chatId, reports[0]);
   await ensureMainReplyKeyboard(bot, chatId);
   return true;
 }

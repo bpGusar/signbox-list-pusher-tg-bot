@@ -18,8 +18,7 @@ export async function showStatusHandler(bot: TelegramBot, chatId: number) {
     return;
   }
 
-  const checkPassed =
-    session?.data?.[SESSION_DATA_KEY.CHECK_PASSED] === "true";
+  const checkPassed = session?.data?.[SESSION_DATA_KEY.CHECK_PASSED] === "true";
 
   if (checkPassed) {
     await bot.sendMessage(chatId, lastCheckText, {

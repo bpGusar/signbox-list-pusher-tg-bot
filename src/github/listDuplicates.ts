@@ -1,18 +1,14 @@
 import { DOMAIN_LIST_FILE, IP_LIST_FILE } from "../const/files";
-import type { DuplicateResolutionStrategy } from "../const/sessions";
-import type { EntryType } from "../utils/validation";
+import type { DuplicateResolutionStrategy } from "../const/types";
+import type { EntryType } from "../utils/types";
 import { getFileIfExists, updateFile } from "./files";
+import type {
+  DuplicateGroup,
+  ListDuplicatesReport,
+  ResolveListDuplicatesResult,
+} from "./types";
 
-export type DuplicateGroup = {
-  value: string;
-  lines: string[];
-};
-
-export type ListDuplicatesReport = {
-  fileName: string;
-  type: EntryType;
-  groups: DuplicateGroup[];
-};
+export type { DuplicateGroup, ListDuplicatesReport } from "./types";
 
 function getListFileName(type: EntryType): string {
   return type === "domain" ? DOMAIN_LIST_FILE : IP_LIST_FILE;
@@ -47,7 +43,10 @@ function parseListContent(content: string): string[] {
 function serializeList(entries: string[]): string {
   if (entries.length === 0) return "";
 
-  return entries.map((entry) => entry.trim()).join("\n").concat("\n");
+  return entries
+    .map((entry) => entry.trim())
+    .join("\n")
+    .concat("\n");
 }
 
 export function findDuplicateGroups(
@@ -119,16 +118,16 @@ function resolveDuplicateEntries(
 
   for (const items of grouped.values()) {
     if (items.length === 1) {
-      indicesToKeep.add(items[0]!.index);
+      indicesToKeep.add(items[0].index);
       continue;
     }
 
-    let keeper = items[0]!;
+    let keeper = items[0];
 
     if (strategy === "keep_last") {
-      keeper = items[items.length - 1]!;
+      keeper = items[items.length - 1];
     } else if (strategy === "keep_active") {
-      keeper = items.find((item) => !isDisabledEntry(item.entry)) ?? items[0]!;
+      keeper = items.find((item) => !isDisabledEntry(item.entry)) ?? items[0];
     }
 
     indicesToKeep.add(keeper.index);
@@ -140,16 +139,7 @@ function resolveDuplicateEntries(
 export async function resolveListDuplicates(
   type: EntryType,
   strategy: DuplicateResolutionStrategy,
-): Promise<
-  | { status: "file_not_found"; fileName: string }
-  | { status: "no_duplicates"; fileName: string }
-  | {
-      status: "resolved";
-      fileName: string;
-      removedCount: number;
-      strategy: DuplicateResolutionStrategy;
-    }
-> {
+): Promise<ResolveListDuplicatesResult> {
   const fileName = getListFileName(type);
   const file = await getFileIfExists(fileName);
 

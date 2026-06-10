@@ -36,8 +36,20 @@ export function getErrorReason(error: unknown): string {
   return String(error);
 }
 
-export function isFileTooLargeError(error: unknown): error is FileTooLargeError {
+export function isFileTooLargeError(
+  error: unknown,
+): error is FileTooLargeError {
   return error instanceof FileTooLargeError;
+}
+
+export function getFileTooLargeDetails(
+  error: unknown,
+): { path: string; sizeBytes: number } | null {
+  if (!isFileTooLargeError(error)) {
+    return null;
+  }
+
+  return { path: error.path, sizeBytes: error.sizeBytes };
 }
 
 export function isGithubAuthError(error: unknown): boolean {

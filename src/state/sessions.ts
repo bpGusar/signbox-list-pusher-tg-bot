@@ -1,30 +1,20 @@
 import { randomBytes } from "node:crypto";
-import {
-  SESSION_DATA_KEY,
-  SESSION_STEP,
-  type DisabledEntryAction,
-  type EntryAction,
-} from "../const/sessions";
-import type { EntryType } from "../utils/validation";
+import { SESSION_DATA_KEY, SESSION_STEP } from "../const/sessions";
+import type { DisabledEntryAction, EntryAction } from "../const/types";
+import type { EntryType } from "../utils/types";
+import type {
+  PendingDisabledEntries,
+  PendingEntries,
+  Session,
+  SessionStep,
+} from "./types";
 
-export type SessionStep = string;
-
-export type Session = {
-  step: SessionStep;
-  data?: Record<string, string>;
-};
-
-export type PendingEntries = {
-  actionId: string;
-  type: EntryType;
-  values: string[];
-};
-
-export type PendingDisabledEntries = {
-  actionId: string;
-  type: EntryType;
-  values: string[];
-};
+export type {
+  PendingDisabledEntries,
+  PendingEntries,
+  Session,
+  SessionStep,
+} from "./types";
 
 const sessions = new Map<number, Session>();
 const consumedActionIds = new Set<string>();
@@ -45,7 +35,9 @@ export function clearSession(chatId: number) {
   sessions.delete(chatId);
 }
 
-export function getPendingMessageId(session: Session | undefined): number | null {
+export function getPendingMessageId(
+  session: Session | undefined,
+): number | null {
   const raw = session?.data?.[SESSION_DATA_KEY.PENDING_MESSAGE_ID];
 
   if (!raw) {

@@ -24,3 +24,8 @@ export {
   type AddToListResult,
   type ModifyManyInListResult,
 } from "./lists";
+export type {
+  DuplicateGroup,
+  ListDuplicatesReport,
+  ResolveListDuplicatesResult,
+} from "./types";

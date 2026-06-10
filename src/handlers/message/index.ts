@@ -2,7 +2,7 @@ import TelegramBot from "node-telegram-bot-api";
 import { SESSION_STEP } from "../../const/sessions";
 import { TEXTS } from "../../messages/texts";
 import { awaitingEnterDomainHandler } from "./awaitingEnterDomainHandler";
-import { Session } from "../../state/sessions";
+import { Session } from "../../state/types";
 
 export const sessiontStepHandler = (
   bot: TelegramBot,

@@ -5,7 +5,12 @@ import { TEXTS } from "./texts";
 export function buildRetryCheckInlineKeyboard(): TelegramBot.InlineKeyboardMarkup {
   return {
     inline_keyboard: [
-      [{ text: TEXTS.keyboard.retryCheck, callback_data: CALLBACK_DATA.RETRY_CHECK }],
+      [
+        {
+          text: TEXTS.keyboard.retryCheck,
+          callback_data: CALLBACK_DATA.RETRY_CHECK,
+        },
+      ],
     ],
   };
 }

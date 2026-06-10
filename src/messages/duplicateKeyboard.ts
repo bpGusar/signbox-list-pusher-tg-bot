@@ -1,9 +1,7 @@
 import TelegramBot from "node-telegram-bot-api";
-import {
-  DUPLICATE_RESOLUTION,
-  type DuplicateResolutionStrategy,
-} from "../const/sessions";
-import type { EntryType } from "../utils/validation";
+import { DUPLICATE_RESOLUTION } from "../const/sessions";
+import type { DuplicateResolutionStrategy } from "../const/types";
+import type { EntryType } from "../utils/types";
 import { TEXTS } from "./texts";
 
 export function buildDuplicateResolutionCallbackData(
@@ -16,7 +14,9 @@ export function buildDuplicateResolutionCallbackData(
 export function parseDuplicateResolutionCallbackData(
   data: string,
 ): { strategy: DuplicateResolutionStrategy; type: EntryType } | null {
-  const match = data.match(/^duplicates:(keep_first|keep_last|keep_active):(domain|ip)$/);
+  const match = data.match(
+    /^duplicates:(keep_first|keep_last|keep_active):(domain|ip)$/,
+  );
 
   if (!match) {
     return null;

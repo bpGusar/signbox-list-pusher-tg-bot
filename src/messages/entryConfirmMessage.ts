@@ -1,5 +1,5 @@
 import TelegramBot from "node-telegram-bot-api";
-import type { EntryAction } from "../const/sessions";
+import type { EntryAction } from "../const/types";
 import { TEXTS } from "./texts";
 
 function getActionLabel(action: EntryAction): string {

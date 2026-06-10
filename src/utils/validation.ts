@@ -1,6 +1,7 @@
 import { isIP } from "node:net";
+import type { EntryType, ParsedEntries } from "./types";
 
-export type EntryType = "domain" | "ip";
+export type { EntryType, ParsedEntries } from "./types";
 
 const DOMAIN_REGEX =
   /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
@@ -65,11 +66,9 @@ export function parseEntry(
   return null;
 }
 
-export type ParsedEntries =
-  | { ok: true; type: EntryType; values: string[] }
-  | { ok: false; reason: "empty" | "mixed_types" | "invalid"; invalid: string[] };
-
-function parseSinglePart(raw: string): { type: EntryType; value: string } | null {
+function parseSinglePart(
+  raw: string,
+): { type: EntryType; value: string } | null {
   const trimmed = raw.trim();
 
   if (!trimmed || trimmed.includes("://")) {
@@ -97,7 +96,9 @@ export function parseEntries(raw: string): ParsedEntries {
   }
 
   const parsed = parts.map((part) => ({ part, entry: parseSinglePart(part) }));
-  const invalid = parsed.filter((item) => item.entry === null).map((item) => item.part);
+  const invalid = parsed
+    .filter((item) => item.entry === null)
+    .map((item) => item.part);
 
   if (invalid.length > 0) {
     return { ok: false, reason: "invalid", invalid };
@@ -110,7 +111,7 @@ export function parseEntries(raw: string): ParsedEntries {
     return { ok: false, reason: "mixed_types", invalid: [] };
   }
 
-  const type = entries[0]!.type;
+  const type = entries[0].type;
   const uniqueValues: string[] = [];
 
   for (const entry of entries) {
@@ -121,4 +122,3 @@ export function parseEntries(raw: string): ParsedEntries {
 
   return { ok: true, type, values: uniqueValues };
 }
-

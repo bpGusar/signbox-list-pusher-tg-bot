@@ -1,6 +1,6 @@
 import { DOMAIN_LIST_FILE, IP_LIST_FILE } from "../const/files";
-import type { AccessCheckResult } from "../github/access";
-import type { EntryType } from "../utils/validation";
+import type { AccessCheckResult } from "../github/types";
+import type { EntryType } from "../utils/types";
 
 export const TEXTS = {
   keyboard: {
@@ -200,8 +200,7 @@ export const TEXTS = {
       type: EntryType;
       groups: { value: string; lines: string[] }[];
     }) => {
-      const typeLabel =
-        report.type === "domain" ? "доменов" : "IP/CIDR";
+      const typeLabel = report.type === "domain" ? "доменов" : "IP/CIDR";
       const groupLines = report.groups.flatMap((group) => [
         `• \`${group.value}\`:`,
         ...group.lines.map((line) => `  - \`${line}\``),
@@ -223,8 +222,7 @@ export const TEXTS = {
         `✅ Дубликаты в \`${fileName}\` исправлены.`,
         `Удалено строк: ${removedCount}.`,
       ].join("\n"),
-    allResolved:
-      "✅ Дубликаты исправлены. Можно добавлять и изменять записи.",
+    allResolved: "✅ Дубликаты исправлены. Можно добавлять и изменять записи.",
     stillHasDuplicates: (fileName: string) =>
       `⚠️ В \`${fileName}\` всё ещё есть дубликаты. Выберите способ исправления.`,
     actions: {
@@ -358,11 +356,7 @@ export const TEXTS = {
 
       return lines.join("\n");
     },
-    removed: (
-      fileName: string,
-      changes: string[],
-      notFound: string[] = [],
-    ) => {
+    removed: (fileName: string, changes: string[], notFound: string[] = []) => {
       const lines = ["✅ Записи удалены"];
 
       if (notFound.length > 0) {
@@ -407,11 +401,7 @@ export const TEXTS = {
     sessionResetHint:
       "Сессия сброшена. Обновите `GITHUB_TOKEN` и выполните /start.",
     typeLabel: (type: EntryType) => (type === "domain" ? "домен" : "IP"),
-    added: (
-      fileName: string,
-      changes: string[],
-      skipped: string[] = [],
-    ) => {
+    added: (fileName: string, changes: string[], skipped: string[] = []) => {
       const lines = ["✅ Успешно добавлено"];
 
       if (skipped.length > 0) {

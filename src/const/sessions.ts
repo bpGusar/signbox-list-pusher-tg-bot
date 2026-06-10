@@ -28,21 +28,19 @@ export const DUPLICATE_RESOLUTION = {
   KEEP_ACTIVE: "keep_active",
 } as const;
 
-export type DuplicateResolutionStrategy =
-  (typeof DUPLICATE_RESOLUTION)[keyof typeof DUPLICATE_RESOLUTION];
-
 export const ENTRY_ACTION = {
   ADD: "add",
   DISABLE: "disable",
   DELETE: "delete",
 } as const;
 
-export type EntryAction = (typeof ENTRY_ACTION)[keyof typeof ENTRY_ACTION];
-
 export const DISABLED_ENTRY_ACTION = {
   ENABLE: "enable",
   DELETE: "delete",
 } as const;
 
-export type DisabledEntryAction =
-  (typeof DISABLED_ENTRY_ACTION)[keyof typeof DISABLED_ENTRY_ACTION];
+export type {
+  DisabledEntryAction,
+  DuplicateResolutionStrategy,
+  EntryAction,
+} from "./types";

@@ -1,5 +1,12 @@
 import axios from "axios";
 import { getGithubApi, getGithubEnv } from "./client";
+import type {
+  GithubContentsResponse,
+  GithubFile,
+  GithubUpdateResponse,
+} from "./types";
+
+export type { GithubFile } from "./types";
 
 export const MAX_CONTENTS_FILE_SIZE = 1024 * 1024;
 
@@ -8,33 +15,14 @@ export class FileTooLargeError extends Error {
   readonly sizeBytes: number;
 
   constructor(path: string, sizeBytes: number) {
-    super(`File ${path} exceeds GitHub Contents API limit (${sizeBytes} bytes)`);
+    super(
+      `File ${path} exceeds GitHub Contents API limit (${sizeBytes} bytes)`,
+    );
     this.name = "FileTooLargeError";
     this.path = path;
     this.sizeBytes = sizeBytes;
   }
 }
-
-export type GithubFile = {
-  sha: string;
-  content: string;
-};
-
-type GithubContentsResponse = {
-  sha: string;
-  content: string;
-  size: number;
-  encoding: string;
-};
-
-type GithubUpdateResponse = {
-  content: {
-    sha: string;
-  };
-  commit: {
-    sha: string;
-  };
-};
 
 export function assertContentSize(path: string, content: string): void {
   const sizeBytes = Buffer.byteLength(content, "utf8");

@@ -1,11 +1,5 @@
 import axios, { type AxiosInstance } from "axios";
-
-type GithubConfig = {
-  token: string;
-  owner: string;
-  repo: string;
-  branch: string;
-};
+import type { GithubConfig } from "./types";
 
 let githubApi: AxiosInstance | undefined;
 let cachedToken: string | undefined;

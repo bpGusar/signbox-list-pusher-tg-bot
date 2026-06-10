@@ -1,5 +1,6 @@
 import TelegramBot from "node-telegram-bot-api";
-import { ENTRY_ACTION, type EntryAction } from "../../const/sessions";
+import { ENTRY_ACTION } from "../../const/sessions";
+import type { EntryAction } from "../../const/types";
 import {
   addManyToList,
   disableManyInList,
@@ -26,10 +27,10 @@ import {
 } from "../../state/sessions";
 import {
   getErrorReason,
-  isFileTooLargeError,
+  getFileTooLargeDetails,
   isGithubAuthError,
 } from "../../utils/errorReason";
-import type { EntryType } from "../../utils/validation";
+import type { EntryType } from "../../utils/types";
 
 function getActionLabel(action: EntryAction): string {
   return TEXTS.entry.actionLabels[action];
@@ -77,10 +78,7 @@ async function handleAdd(
 
   switch (result.status) {
     case "file_not_found": {
-      await bot.sendMessage(
-        chatId,
-        TEXTS.files.notFoundOnAdd(result.fileName),
-      );
+      await bot.sendMessage(chatId, TEXTS.files.notFoundOnAdd(result.fileName));
       return;
     }
 
@@ -138,10 +136,7 @@ async function handleDisable(
 
   switch (result.status) {
     case "file_not_found": {
-      await bot.sendMessage(
-        chatId,
-        TEXTS.files.notFoundOnAdd(result.fileName),
-      );
+      await bot.sendMessage(chatId, TEXTS.files.notFoundOnAdd(result.fileName));
       return;
     }
 
@@ -183,10 +178,7 @@ async function handleDelete(
 
   switch (result.status) {
     case "file_not_found": {
-      await bot.sendMessage(
-        chatId,
-        TEXTS.files.notFoundOnAdd(result.fileName),
-      );
+      await bot.sendMessage(chatId, TEXTS.files.notFoundOnAdd(result.fileName));
       return;
     }
 
@@ -301,8 +293,9 @@ export const entryActionHandler = async (
         break;
     }
   } catch (error) {
-    const reason = isFileTooLargeError(error)
-      ? TEXTS.files.tooLarge(error.path, error.sizeBytes)
+    const fileTooLarge = getFileTooLargeDetails(error);
+    const reason = fileTooLarge
+      ? TEXTS.files.tooLarge(fileTooLarge.path, fileTooLarge.sizeBytes)
       : getErrorReason(error);
     const sessionReset = isGithubAuthError(error);
 

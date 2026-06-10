@@ -1,29 +1,16 @@
 import TelegramBot from "node-telegram-bot-api";
 import { DOMAIN_LIST_FILE, IP_LIST_FILE } from "../const/files";
+import type {
+  CheckProgressCallback,
+  CheckStepId,
+  Step,
+  StepStatus,
+} from "./types";
 import { TEXTS } from "./texts";
 
-export type CheckStepId =
-  | "env"
-  | "repo"
-  | "permissions"
-  | "branch"
-  | "domain_file"
-  | "ip_file";
-
-type StepStatus = "pending" | "running" | "done" | "failed";
-
-type Step = {
-  id: CheckStepId;
-  label: string;
-  status: StepStatus;
-};
+export type { CheckProgressCallback, CheckStepId } from "./types";
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-
-export type CheckProgressCallback = (
-  step: CheckStepId,
-  status: "start" | "done" | "fail",
-) => void;
 
 export class CheckProgressReporter {
   private readonly steps: Step[];
