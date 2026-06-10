@@ -1,27 +1,20 @@
 import TelegramBot from "node-telegram-bot-api";
-import { ENTRY_ACTION, type EntryAction } from "../../const/sessions";
+import { DISABLED_ENTRY_ACTION } from "../../const/sessions";
 import {
-  addManyToList,
-  disableManyInList,
+  enableManyInList,
   removeManyFromList,
   type DuplicatesInFileResult,
 } from "../../github/lists";
 import { findListDuplicates } from "../../github/listDuplicates";
 import { promptDuplicatesForType } from "./duplicateActionHandler";
-import {
-  markConfirmMessageInProgress,
-  removeInlineKeyboard,
-} from "../../messages/entryConfirmMessage";
-import { sendDisabledEntriesPrompt } from "../../messages/disabledEntryMessage";
 import { sendDuplicatesPrompt } from "../../messages/duplicateMessage";
 import { TEXTS } from "../../messages/texts";
 import {
-  clearPendingEntries,
+  clearPendingDisabledEntries,
   clearSession,
-  getPendingEntries,
+  getPendingDisabledEntries,
   getSession,
-  parseEntryActionCallbackData,
-  setPendingDisabledEntries,
+  parseDisabledEntryActionCallbackData,
   tryConsumeAction,
 } from "../../state/sessions";
 import {
@@ -29,11 +22,6 @@ import {
   isFileTooLargeError,
   isGithubAuthError,
 } from "../../utils/errorReason";
-import type { EntryType } from "../../utils/validation";
-
-function getActionLabel(action: EntryAction): string {
-  return TEXTS.entry.actionLabels[action];
-}
 
 async function handleDuplicatesInFile(
   bot: TelegramBot,
@@ -43,98 +31,13 @@ async function handleDuplicatesInFile(
   await promptDuplicatesForType(bot, chatId, result.type);
 }
 
-async function promptDisabledEntriesIfNeeded(
+async function handleEnable(
   bot: TelegramBot,
   chatId: number,
-  type: EntryType,
-  fileName: string,
-  disabledInFile: string[],
-  skipped: string[],
-) {
-  if (disabledInFile.length === 0) {
-    return;
-  }
-
-  const actionId = setPendingDisabledEntries(chatId, type, disabledInFile);
-
-  await sendDisabledEntriesPrompt(
-    bot,
-    chatId,
-    fileName,
-    disabledInFile,
-    actionId,
-    skipped.length === 0,
-  );
-}
-
-async function handleAdd(
-  bot: TelegramBot,
-  chatId: number,
-  type: EntryType,
+  type: "domain" | "ip",
   values: string[],
 ) {
-  const result = await addManyToList(type, values);
-
-  switch (result.status) {
-    case "file_not_found": {
-      await bot.sendMessage(
-        chatId,
-        TEXTS.files.notFoundOnAdd(result.fileName),
-      );
-      return;
-    }
-
-    case "duplicates_in_file": {
-      await handleDuplicatesInFile(bot, chatId, result);
-      return;
-    }
-
-    case "all_exist": {
-      if (result.skipped.length > 0) {
-        await bot.sendMessage(
-          chatId,
-          TEXTS.entry.allExist(result.type, result.skipped),
-          { parse_mode: "Markdown" },
-        );
-      }
-
-      await promptDisabledEntriesIfNeeded(
-        bot,
-        chatId,
-        result.type,
-        result.fileName,
-        result.disabledInFile,
-        result.skipped,
-      );
-      return;
-    }
-
-    case "added": {
-      await bot.sendMessage(
-        chatId,
-        TEXTS.entry.added(result.fileName, result.changes, result.skipped),
-      );
-
-      await promptDisabledEntriesIfNeeded(
-        bot,
-        chatId,
-        result.type,
-        result.fileName,
-        result.disabledInFile,
-        result.skipped,
-      );
-      return;
-    }
-  }
-}
-
-async function handleDisable(
-  bot: TelegramBot,
-  chatId: number,
-  type: EntryType,
-  values: string[],
-) {
-  const result = await disableManyInList(type, values);
+  const result = await enableManyInList(type, values);
 
   switch (result.status) {
     case "file_not_found": {
@@ -153,7 +56,11 @@ async function handleDisable(
     case "no_changes": {
       await bot.sendMessage(
         chatId,
-        TEXTS.entry.disabledNone(result.type, result.skipped, result.notFound),
+        TEXTS.disabledEntries.enabledNone(
+          result.type,
+          result.skipped,
+          result.notFound,
+        ),
       );
       return;
     }
@@ -161,7 +68,7 @@ async function handleDisable(
     case "modified": {
       await bot.sendMessage(
         chatId,
-        TEXTS.entry.disabled(
+        TEXTS.disabledEntries.enabled(
           result.fileName,
           result.changes,
           result.skipped,
@@ -176,7 +83,7 @@ async function handleDisable(
 async function handleDelete(
   bot: TelegramBot,
   chatId: number,
-  type: EntryType,
+  type: "domain" | "ip",
   values: string[],
 ) {
   const result = await removeManyFromList(type, values);
@@ -213,15 +120,14 @@ async function handleDelete(
   }
 }
 
-export const entryActionHandler = async (
+export const disabledEntryActionHandler = async (
   bot: TelegramBot,
   chatId: number,
   callbackData: string,
   callbackQueryId: string,
   messageId?: number,
-  messageText?: string,
 ) => {
-  const parsed = parseEntryActionCallbackData(callbackData);
+  const parsed = parseDisabledEntryActionCallbackData(callbackData);
 
   if (!parsed) {
     await bot.answerCallbackQuery(callbackQueryId);
@@ -232,25 +138,31 @@ export const entryActionHandler = async (
 
   if (!tryConsumeAction(actionId)) {
     if (messageId) {
-      await removeInlineKeyboard(bot, chatId, messageId);
+      await bot.editMessageReplyMarkup(
+        { inline_keyboard: [] },
+        { chat_id: chatId, message_id: messageId },
+      );
     }
 
     await bot.answerCallbackQuery(callbackQueryId, {
-      text: TEXTS.entry.actionAlreadyHandled,
+      text: TEXTS.disabledEntries.actionAlreadyHandled,
     });
     return;
   }
 
   const session = getSession(chatId);
-  const pending = session ? getPendingEntries(session) : null;
+  const pending = session ? getPendingDisabledEntries(session) : null;
 
   if (!pending || pending.actionId !== actionId) {
     if (messageId) {
-      await removeInlineKeyboard(bot, chatId, messageId);
+      await bot.editMessageReplyMarkup(
+        { inline_keyboard: [] },
+        { chat_id: chatId, message_id: messageId },
+      );
     }
 
     await bot.answerCallbackQuery(callbackQueryId, {
-      text: TEXTS.entry.actionExpired,
+      text: TEXTS.disabledEntries.actionExpired,
       show_alert: true,
     });
     return;
@@ -268,21 +180,21 @@ export const entryActionHandler = async (
     return;
   }
 
-  clearPendingEntries(chatId);
+  clearPendingDisabledEntries(chatId);
 
-  if (messageId && messageText) {
-    await markConfirmMessageInProgress(
-      bot,
-      chatId,
-      messageId,
-      messageText,
-      action,
+  if (messageId) {
+    await bot.editMessageReplyMarkup(
+      { inline_keyboard: [] },
+      { chat_id: chatId, message_id: messageId },
     );
-  } else if (messageId) {
-    await removeInlineKeyboard(bot, chatId, messageId);
   }
 
   await bot.answerCallbackQuery(callbackQueryId);
+
+  const actionLabel =
+    action === DISABLED_ENTRY_ACTION.ENABLE
+      ? TEXTS.disabledEntries.actions.enable
+      : TEXTS.disabledEntries.actions.delete;
 
   try {
     await bot.sendMessage(chatId, TEXTS.entry.checking(values), {
@@ -290,13 +202,10 @@ export const entryActionHandler = async (
     });
 
     switch (action) {
-      case ENTRY_ACTION.ADD:
-        await handleAdd(bot, chatId, type, values);
+      case DISABLED_ENTRY_ACTION.ENABLE:
+        await handleEnable(bot, chatId, type, values);
         break;
-      case ENTRY_ACTION.DISABLE:
-        await handleDisable(bot, chatId, type, values);
-        break;
-      case ENTRY_ACTION.DELETE:
+      case DISABLED_ENTRY_ACTION.DELETE:
         await handleDelete(bot, chatId, type, values);
         break;
     }
@@ -310,16 +219,11 @@ export const entryActionHandler = async (
       clearSession(chatId);
     }
 
-    console.error("Entry action failed:", error);
+    console.error("Disabled entry action failed:", error);
 
     await bot.sendMessage(
       chatId,
-      TEXTS.entry.actionFailed(
-        getActionLabel(action),
-        values,
-        reason,
-        sessionReset,
-      ),
+      TEXTS.entry.actionFailed(actionLabel, values, reason, sessionReset),
       { parse_mode: "Markdown" },
     );
   }

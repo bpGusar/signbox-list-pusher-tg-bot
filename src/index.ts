@@ -1,7 +1,9 @@
 import TelegramBot from "node-telegram-bot-api";
 import "dotenv/config";
 import { callbackQueryHandler } from "./handlers/callback";
+import { showStatusHandler } from "./handlers/message/showStatusHandler";
 import { sessiontStepHandler } from "./handlers/message";
+import { TEXTS } from "./messages/texts";
 import { startMessage } from "./messages/startMessage";
 import { getSession } from "./state/sessions";
 
@@ -24,6 +26,11 @@ bot.on("message", (msg) => {
   const text = msg.text?.trim();
 
   if (!text || text.startsWith("/")) return;
+
+  if (text === TEXTS.keyboard.showStatus) {
+    void showStatusHandler(bot, chatId);
+    return;
+  }
 
   const session = getSession(chatId);
   if (!session) return;

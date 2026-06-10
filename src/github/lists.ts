@@ -1,5 +1,9 @@
 import axios from "axios";
 import { DOMAIN_LIST_FILE, IP_LIST_FILE } from "../const/files";
+import {
+  findDuplicateGroups,
+  type DuplicateGroup,
+} from "./listDuplicates";
 import type { EntryType } from "../utils/validation";
 import { getFileIfExists, updateFile } from "./files";
 
@@ -7,6 +11,7 @@ const CONFLICT_MAX_ATTEMPTS = 3;
 
 export type AddToListResult =
   | { status: "file_not_found"; fileName: string }
+  | DuplicatesInFileResult
   | { status: "already_exists"; fileName: string; value: string; type: EntryType }
   | {
       status: "added";
@@ -16,13 +21,22 @@ export type AddToListResult =
       changes: string[];
     };
 
+export type DuplicatesInFileResult = {
+  status: "duplicates_in_file";
+  fileName: string;
+  type: EntryType;
+  groups: DuplicateGroup[];
+};
+
 export type AddManyToListResult =
   | { status: "file_not_found"; fileName: string }
+  | DuplicatesInFileResult
   | {
       status: "all_exist";
       fileName: string;
       type: EntryType;
       skipped: string[];
+      disabledInFile: string[];
     }
   | {
       status: "added";
@@ -30,11 +44,13 @@ export type AddManyToListResult =
       type: EntryType;
       added: string[];
       skipped: string[];
+      disabledInFile: string[];
       changes: string[];
     };
 
 export type ModifyManyInListResult =
   | { status: "file_not_found"; fileName: string }
+  | DuplicatesInFileResult
   | {
       status: "no_changes";
       fileName: string;
@@ -67,56 +83,16 @@ function parseListContent(content: string): string[] {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    const parts = trimmed.includes(",")
-      ? trimmed.split(",").map((part) => part.trim())
-      : [trimmed];
-
-    for (const part of parts) {
-      if (part) {
-        entries.push(part);
-      }
-    }
+    entries.push(trimmed);
   }
 
   return entries;
-}
-
-function prepareEntriesForWrite(entries: string[], type: EntryType): string[] {
-  if (type !== "domain") {
-    return entries;
-  }
-
-  const seen = new Set<string>();
-  const unique: string[] = [];
-
-  for (const entry of entries) {
-    const normalized = entry.toLowerCase();
-
-    if (!seen.has(normalized)) {
-      seen.add(normalized);
-      unique.push(normalized);
-    }
-  }
-
-  unique.sort((a, b) =>
-    a.localeCompare(b, undefined, { sensitivity: "base" }),
-  );
-
-  return unique;
 }
 
 function serializeList(entries: string[]): string {
   if (entries.length === 0) return "";
 
   return entries.map((entry) => entry.trim()).join("\n").concat("\n");
-}
-
-function entryExists(
-  entries: string[],
-  value: string,
-  type: EntryType,
-): boolean {
-  return findEntryIndex(entries, value, type) !== -1;
 }
 
 function stripDisablePrefix(entry: string): string {
@@ -171,6 +147,20 @@ function isConflictError(error: unknown): boolean {
   return axios.isAxiosError(error) && error.response?.status === 409;
 }
 
+function getDuplicatesInFileResult(
+  fileName: string,
+  type: EntryType,
+  entries: string[],
+): DuplicatesInFileResult | null {
+  const groups = findDuplicateGroups(entries, type);
+
+  if (groups.length === 0) {
+    return null;
+  }
+
+  return { status: "duplicates_in_file", fileName, type, groups };
+}
+
 async function addManyToListOnce(
   type: EntryType,
   values: string[],
@@ -183,8 +173,15 @@ async function addManyToListOnce(
   }
 
   const entries = parseListContent(file.content);
+  const duplicatesResult = getDuplicatesInFileResult(fileName, type, entries);
+
+  if (duplicatesResult) {
+    return duplicatesResult;
+  }
+
   const added: string[] = [];
   const skipped: string[] = [];
+  const disabledInFile: string[] = [];
   const changes: string[] = [];
 
   for (const value of values) {
@@ -201,31 +198,17 @@ async function addManyToListOnce(
     const current = entries[index];
 
     if (isDisabledEntry(current)) {
-      entries[index] = normalizedValue;
-      added.push(normalizedValue);
-      changes.push(
-        `~ ${formatDisabledEntry(normalizedValue, type)} → ${normalizedValue}`,
-      );
+      disabledInFile.push(normalizedValue);
       continue;
     }
 
     skipped.push(normalizedValue);
   }
 
-  const prepared = prepareEntriesForWrite(entries, type);
-  const newContent = serializeList(prepared);
+  const newContent = serializeList(entries);
 
   if (added.length === 0) {
-    if (newContent !== file.content) {
-      await updateFile(
-        fileName,
-        newContent,
-        file.sha,
-        type === "domain" ? "Normalize domain list" : "Normalize IP list",
-      );
-    }
-
-    return { status: "all_exist", fileName, type, skipped };
+    return { status: "all_exist", fileName, type, skipped, disabledInFile };
   }
 
   const commitMessage =
@@ -241,6 +224,7 @@ async function addManyToListOnce(
     type,
     added,
     skipped,
+    disabledInFile,
     changes,
   };
 }
@@ -264,6 +248,12 @@ async function disableManyInListOnce(
   }
 
   const entries = parseListContent(file.content);
+  const duplicatesResult = getDuplicatesInFileResult(fileName, type, entries);
+
+  if (duplicatesResult) {
+    return duplicatesResult;
+  }
+
   const affected: string[] = [];
   const skipped: string[] = [];
   const notFound: string[] = [];
@@ -298,12 +288,83 @@ async function disableManyInListOnce(
     return { status: "no_changes", fileName, type, skipped, notFound };
   }
 
-  const prepared = prepareEntriesForWrite(entries, type);
-  const newContent = serializeList(prepared);
+  const newContent = serializeList(entries);
   const commitMessage =
     type === "domain"
       ? `Disable ${affected.length} domain${affected.length === 1 ? "" : "s"}`
       : `Disable ${affected.length} IP${affected.length === 1 ? "" : "s"}`;
+
+  await updateFile(fileName, newContent, file.sha, commitMessage);
+
+  return {
+    status: "modified",
+    fileName,
+    type,
+    affected,
+    skipped,
+    notFound,
+    changes,
+  };
+}
+
+async function enableManyInListOnce(
+  type: EntryType,
+  values: string[],
+): Promise<ModifyManyInListResult> {
+  const fileName = getListFileName(type);
+  const file = await getFileIfExists(fileName);
+
+  if (!file) {
+    return { status: "file_not_found", fileName };
+  }
+
+  const entries = parseListContent(file.content);
+  const duplicatesResult = getDuplicatesInFileResult(fileName, type, entries);
+
+  if (duplicatesResult) {
+    return duplicatesResult;
+  }
+
+  const affected: string[] = [];
+  const skipped: string[] = [];
+  const notFound: string[] = [];
+  const changes: string[] = [];
+
+  for (const value of values) {
+    const index = findEntryIndex(entries, value, type);
+
+    if (index === -1) {
+      notFound.push(normalizeEntryValue(value, type));
+      continue;
+    }
+
+    const current = entries[index];
+
+    if (!isDisabledEntry(current)) {
+      skipped.push(normalizeEntryValue(value, type));
+      continue;
+    }
+
+    const normalizedValue = normalizeEntryValue(
+      stripDisablePrefix(current),
+      type,
+    );
+    entries[index] = normalizedValue;
+    affected.push(normalizedValue);
+    changes.push(
+      `~ ${formatDisabledEntry(normalizedValue, type)} → ${normalizedValue}`,
+    );
+  }
+
+  if (affected.length === 0) {
+    return { status: "no_changes", fileName, type, skipped, notFound };
+  }
+
+  const newContent = serializeList(entries);
+  const commitMessage =
+    type === "domain"
+      ? `Enable ${affected.length} domain${affected.length === 1 ? "" : "s"}`
+      : `Enable ${affected.length} IP${affected.length === 1 ? "" : "s"}`;
 
   await updateFile(fileName, newContent, file.sha, commitMessage);
 
@@ -330,6 +391,12 @@ async function removeManyFromListOnce(
   }
 
   const entries = parseListContent(file.content);
+  const duplicatesResult = getDuplicatesInFileResult(fileName, type, entries);
+
+  if (duplicatesResult) {
+    return duplicatesResult;
+  }
+
   const affected: string[] = [];
   const notFound: string[] = [];
   const changes: string[] = [];
@@ -361,8 +428,7 @@ async function removeManyFromListOnce(
     };
   }
 
-  const prepared = prepareEntriesForWrite(entries, type);
-  const newContent = serializeList(prepared);
+  const newContent = serializeList(entries);
   const commitMessage =
     type === "domain"
       ? `Remove ${affected.length} domain${affected.length === 1 ? "" : "s"}`
@@ -379,6 +445,13 @@ async function removeManyFromListOnce(
     notFound,
     changes,
   };
+}
+
+export async function enableManyInList(
+  type: EntryType,
+  values: string[],
+): Promise<ModifyManyInListResult> {
+  return withConflictRetry(() => enableManyInListOnce(type, values));
 }
 
 export async function disableManyInList(
@@ -403,6 +476,8 @@ export async function addToList(
 
   switch (result.status) {
     case "file_not_found":
+      return result;
+    case "duplicates_in_file":
       return result;
     case "all_exist":
       return { status: "already_exists", fileName: result.fileName, value, type };

@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import {
   SESSION_DATA_KEY,
   SESSION_STEP,
+  type DisabledEntryAction,
   type EntryAction,
 } from "../const/sessions";
 import type { EntryType } from "../utils/validation";
@@ -14,6 +15,12 @@ export type Session = {
 };
 
 export type PendingEntries = {
+  actionId: string;
+  type: EntryType;
+  values: string[];
+};
+
+export type PendingDisabledEntries = {
   actionId: string;
   type: EntryType;
   values: string[];
@@ -106,8 +113,76 @@ export function getPendingEntries(session: Session): PendingEntries | null {
   }
 }
 
+export function setPendingDisabledEntries(
+  chatId: number,
+  type: EntryType,
+  values: string[],
+): string {
+  const actionId = randomBytes(4).toString("hex");
+  const current = getSession(chatId);
+
+  setSession(chatId, SESSION_STEP.AWAITING_DISABLED_RESOLUTION, {
+    ...current?.data,
+    [SESSION_DATA_KEY.PENDING_DISABLED_TYPE]: type,
+    [SESSION_DATA_KEY.PENDING_DISABLED_VALUES]: JSON.stringify(values),
+    [SESSION_DATA_KEY.PENDING_DISABLED_ACTION_ID]: actionId,
+  });
+
+  return actionId;
+}
+
+export function getPendingDisabledEntries(
+  session: Session,
+): PendingDisabledEntries | null {
+  const type = session.data?.[SESSION_DATA_KEY.PENDING_DISABLED_TYPE] as
+    | EntryType
+    | undefined;
+  const valuesJson = session.data?.[SESSION_DATA_KEY.PENDING_DISABLED_VALUES];
+  const actionId = session.data?.[SESSION_DATA_KEY.PENDING_DISABLED_ACTION_ID];
+
+  if (!type || !valuesJson || !actionId) {
+    return null;
+  }
+
+  try {
+    const values = JSON.parse(valuesJson) as string[];
+
+    if (!Array.isArray(values) || values.length === 0) {
+      return null;
+    }
+
+    return { actionId, type, values };
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingDisabledEntries(chatId: number) {
+  const current = getSession(chatId);
+
+  if (!current?.data) {
+    return;
+  }
+
+  const rest = { ...current.data };
+  delete rest[SESSION_DATA_KEY.PENDING_DISABLED_TYPE];
+  delete rest[SESSION_DATA_KEY.PENDING_DISABLED_VALUES];
+  delete rest[SESSION_DATA_KEY.PENDING_DISABLED_ACTION_ID];
+
+  setSession(chatId, SESSION_STEP.AWAITING_ENTRY, rest);
+}
+
 export function clearPendingEntries(chatId: number) {
-  setSession(chatId, SESSION_STEP.AWAITING_ENTRY);
+  const current = getSession(chatId);
+
+  setSession(chatId, SESSION_STEP.AWAITING_ENTRY, {
+    [SESSION_DATA_KEY.LAST_CHECK_TEXT]:
+      current?.data?.[SESSION_DATA_KEY.LAST_CHECK_TEXT] ?? "",
+    [SESSION_DATA_KEY.CHECK_PASSED]:
+      current?.data?.[SESSION_DATA_KEY.CHECK_PASSED] ?? "true",
+    [SESSION_DATA_KEY.KEYBOARD_ACTIVE]:
+      current?.data?.[SESSION_DATA_KEY.KEYBOARD_ACTIVE] ?? "",
+  });
 }
 
 export function tryConsumeAction(actionId: string): boolean {
@@ -137,6 +212,28 @@ export function parseEntryActionCallbackData(
 
   return {
     action: match[1] as EntryAction,
+    actionId: match[2],
+  };
+}
+
+export function buildDisabledEntryActionCallbackData(
+  action: DisabledEntryAction,
+  actionId: string,
+): string {
+  return `disabled:${action}:${actionId}`;
+}
+
+export function parseDisabledEntryActionCallbackData(
+  data: string,
+): { action: DisabledEntryAction; actionId: string } | null {
+  const match = data.match(/^disabled:(enable|delete):([a-f0-9]{8})$/);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    action: match[1] as DisabledEntryAction,
     actionId: match[2],
   };
 }

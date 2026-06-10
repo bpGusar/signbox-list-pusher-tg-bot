@@ -1,8 +1,26 @@
-# domains_changer
+# signbox-list-pusher-tg-bot
 
-Telegram-бот для добавления доменов и IP/CIDR в списки GitHub-репозитория (`domain_list.srs`, `ip_list.srs`).
+Telegram-бот для добавления доменов и IP/CIDR в списки GitHub-репозитория (`domain_list.lst`, `ip_list.lst`).
 
 Стек: Node.js, [node-telegram-bot-api](https://github.com/yagop/node-telegram-bot-api), GitHub Contents API.
+
+## Оглавление
+
+- [Требования](#требования)
+- [Установка](#установка)
+- [Настройка](#настройка)
+- [Использование](#использование)
+- [Запуск локально](#запуск-локально)
+- [Запуск в Docker](#запуск-в-docker)
+  - [Production](#production)
+  - [Разработка с автоподтягиванием изменений](#разработка-с-автоподтягиванием-изменений)
+  - [Полезные Docker-команды](#полезные-docker-команды)
+- [Деплой на VPS](#деплой-на-vps)
+  - [Предварительные требования](#предварительные-требования)
+  - [Первый деплой](#первый-деплой)
+  - [Обновление](#обновление)
+  - [Эксплуатация](#эксплуатация)
+  - [Безопасность](#безопасность)
 
 ## Требования
 
@@ -20,7 +38,7 @@ yarn install
 
 1. Создайте бота через [@BotFather](https://t.me/BotFather) и получите токен.
 2. Создайте fine-grained или classic GitHub token с правом **Contents: Read and write** для целевого репозитория.
-3. В корне репозитория должны существовать файлы `domain_list.srs` и `ip_list.srs`.
+3. В корне репозитория должны существовать файлы `domain_list.lst` и `ip_list.lst`.
 4. Скопируйте `.env.example` в `.env` и заполните переменные:
 
 ```bash
@@ -158,7 +176,7 @@ docker compose --profile dev down
 
 ### Предварительные требования
 
-- Выполнена [настройка](#настройка): токены Telegram и GitHub, файлы `domain_list.srs` и `ip_list.srs` в целевом репозитории.
+- Выполнена [настройка](#настройка): токены Telegram и GitHub, файлы `domain_list.lst` и `ip_list.lst` в целевом репозитории.
 - На сервере установлены Docker и `docker compose`.
 - Открывать входящие порты не нужно — бот работает через long polling (исходящие HTTPS-запросы к Telegram и GitHub).
 

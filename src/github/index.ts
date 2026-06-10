@@ -18,6 +18,7 @@ export {
   addManyToList,
   addToList,
   disableManyInList,
+  enableManyInList,
   removeManyFromList,
   type AddManyToListResult,
   type AddToListResult,

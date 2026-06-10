@@ -99,13 +99,17 @@ export class CheckProgressReporter {
     }
   }
 
-  async finish(text: string): Promise<void> {
+  async finish(
+    text: string,
+    replyMarkup?: TelegramBot.InlineKeyboardMarkup,
+  ): Promise<void> {
     this.stopSpinner();
 
     await this.bot.editMessageText(text, {
       chat_id: this.chatId,
       message_id: this.messageId,
       parse_mode: "Markdown",
+      reply_markup: replyMarkup,
     });
   }
 

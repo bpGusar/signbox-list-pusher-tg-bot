@@ -3,6 +3,13 @@ import type { AccessCheckResult } from "../github/access";
 import type { EntryType } from "../utils/validation";
 
 export const TEXTS = {
+  keyboard: {
+    showStatus: "📋 Статус проверки",
+    retryCheck: "Выполнить проверку еще раз",
+    noCheckYet: "Сначала выполните /start.",
+    menuActivated: "⌨️",
+  },
+
   start: {
     prompt:
       "Отправьте домен в формате `example.com` или IP/CIDR.\nНесколько значений — через запятую: `test1.com,test2.com` или `1.2.3.4,10.0.0.0/8`\n\nПосле ввода выберите действие: добавить, отключить (`//`) или удалить.",
@@ -90,6 +97,140 @@ export const TEXTS = {
         "Лимит GitHub Contents API — 1 МБ.",
         "Добавление через бота недоступно, пока файл не уменьшится.",
       ].join("\n");
+    },
+  },
+
+  disabledEntries: {
+    blockedEntry:
+      "Есть отключённые записи. Выберите действие в сообщении выше или отправьте новые записи.",
+    actionExpired:
+      "Действие устарело. Отправьте записи заново и выберите «Добавить».",
+    actionAlreadyHandled: "Действие уже выполняется или выполнено.",
+    prompt: (fileName: string, values: string[]) =>
+      [
+        `⚠️ В файле \`${fileName}\` эти записи отключены (\`//\`):`,
+        "",
+        ...values.map((value) => `• \`${value}\``),
+        "",
+        "Выберите действие:",
+      ].join("\n"),
+    onlyDisabled: (fileName: string, values: string[]) =>
+      [
+        `Записи не добавлены — они уже есть в \`${fileName}\`, но отключены (\`//\`):`,
+        "",
+        ...values.map((value) => `• \`${value}\``),
+        "",
+        "Выберите действие:",
+      ].join("\n"),
+    enabled: (
+      fileName: string,
+      changes: string[],
+      skipped: string[] = [],
+      notFound: string[] = [],
+    ) => {
+      const lines = ["✅ Записи включены"];
+
+      if (skipped.length > 0) {
+        lines.push(
+          "",
+          "Уже были активны:",
+          ...skipped.map((value) => `  ${value}`),
+        );
+      }
+
+      if (notFound.length > 0) {
+        lines.push(
+          "",
+          "Не найдены в списке:",
+          ...notFound.map((value) => `  ${value}`),
+        );
+      }
+
+      lines.push(
+        "",
+        `Изменённый список: ${fileName}`,
+        "Изменения:",
+        ...changes.map((change) => `  ${change}`),
+      );
+
+      return lines.join("\n");
+    },
+    enabledNone: (
+      type: EntryType,
+      skipped: string[] = [],
+      notFound: string[] = [],
+    ) => {
+      const lines = [
+        type === "domain"
+          ? "Ни один домен не был включён."
+          : "Ни один IP не был включён.",
+      ];
+
+      if (skipped.length > 0) {
+        lines.push(
+          "",
+          "Уже были активны:",
+          ...skipped.map((value) => `  ${value}`),
+        );
+      }
+
+      if (notFound.length > 0) {
+        lines.push(
+          "",
+          "Не найдены в списке:",
+          ...notFound.map((value) => `  ${value}`),
+        );
+      }
+
+      return lines.join("\n");
+    },
+    actions: {
+      enable: "Включить",
+      delete: "Удалить",
+    },
+  },
+
+  duplicates: {
+    blockedAction:
+      "В списке есть дубликаты. Сначала выберите, как их исправить.",
+    blockedEntry:
+      "В списке есть дубликаты. Исправьте их через сообщение выше или выполните /start.",
+    prompt: (report: {
+      fileName: string;
+      type: EntryType;
+      groups: { value: string; lines: string[] }[];
+    }) => {
+      const typeLabel =
+        report.type === "domain" ? "доменов" : "IP/CIDR";
+      const groupLines = report.groups.flatMap((group) => [
+        `• \`${group.value}\`:`,
+        ...group.lines.map((line) => `  - \`${line}\``),
+      ]);
+
+      return [
+        `⚠️ В файле \`${report.fileName}\` найдены дубликаты ${typeLabel}:`,
+        "",
+        ...groupLines,
+        "",
+        "Выберите, как исправить дубликаты:",
+        "• **Оставить первое** — сохранить самую раннюю строку в файле",
+        "• **Оставить последнее** — сохранить самую позднюю строку",
+        "• **Оставить активное** — сохранить запись без `//`, если она есть",
+      ].join("\n");
+    },
+    resolved: (fileName: string, removedCount: number) =>
+      [
+        `✅ Дубликаты в \`${fileName}\` исправлены.`,
+        `Удалено строк: ${removedCount}.`,
+      ].join("\n"),
+    allResolved:
+      "✅ Дубликаты исправлены. Можно добавлять и изменять записи.",
+    stillHasDuplicates: (fileName: string) =>
+      `⚠️ В \`${fileName}\` всё ещё есть дубликаты. Выберите способ исправления.`,
+    actions: {
+      keepFirst: "Оставить первое",
+      keepLast: "Оставить последнее",
+      keepActive: "Оставить активное",
     },
   },
 
