@@ -32,6 +32,7 @@ export const ENTRY_ACTION = {
   ADD: "add",
   DISABLE: "disable",
   DELETE: "delete",
+  CANCEL: "cancel",
 } as const;
 
 export const DISABLED_ENTRY_ACTION = {
