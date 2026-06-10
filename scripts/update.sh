@@ -26,11 +26,25 @@ needs_bootstrap() {
   return 0
 }
 
+bootstrap_repo_name_from_url() {
+  local url="${1:-https://github.com/bpGusar/signbox-list-pusher-tg-bot.git}" name="${url%/}"
+
+  name="${name##*/}"
+  name="${name%.git}"
+  printf '%s\n' "${name:-signbox-list-pusher-tg-bot}"
+}
+
 bootstrap_resolve_install_dir() {
   local install_dir marker_file="${HOME}/.local/share/signbox-list-pusher-tg-bot/install_dir"
+  local repo_url repo_name
 
   if [[ -n "${INSTALL_DIR:-}" ]]; then
-    cd "${INSTALL_DIR}" && pwd
+    install_dir="${INSTALL_DIR/#\~/$HOME}"
+    if [[ -d "${install_dir}" ]]; then
+      cd "${install_dir}" && pwd
+      return 0
+    fi
+    printf '%s\n' "${install_dir}"
     return 0
   fi
 
@@ -42,7 +56,15 @@ bootstrap_resolve_install_dir() {
     fi
   fi
 
-  pwd
+  repo_url="${REPO_URL:-https://github.com/bpGusar/signbox-list-pusher-tg-bot.git}"
+  repo_name="$(bootstrap_repo_name_from_url "${repo_url}")"
+  install_dir="$(pwd)/${repo_name}"
+  if [[ -f "${install_dir}/docker-compose.yml" ]]; then
+    printf '%s\n' "${install_dir}"
+    return 0
+  fi
+
+  printf '%s\n' "${install_dir}"
 }
 
 bootstrap_maintenance() {

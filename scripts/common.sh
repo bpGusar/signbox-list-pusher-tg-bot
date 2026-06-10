@@ -15,13 +15,45 @@ info() { printf '==> %s\n' "$*"; }
 warn() { printf '!!> %s\n' "$*" >&2; }
 die() { warn "$*"; exit 1; }
 
-default_install_dir() {
-  if [[ -n "${INSTALL_DIR:-}" ]]; then
-    cd "${INSTALL_DIR}" && pwd
+repo_name_from_url() {
+  local url="${1:-${REPO_URL:-${DEFAULT_REPO_URL}}}"
+  local name="${url%/}"
+
+  name="${name##*/}"
+  name="${name%.git}"
+
+  if [[ -z "${name}" ]]; then
+    name="signbox-list-pusher-tg-bot"
+  fi
+
+  printf '%s\n' "${name}"
+}
+
+expand_install_path() {
+  local path="$1"
+
+  path="${path/#\~/$HOME}"
+
+  if [[ -d "${path}" ]]; then
+    cd "${path}" && pwd
     return 0
   fi
 
-  pwd
+  printf '%s\n' "${path}"
+}
+
+default_install_dir() {
+  local repo_url repo_name parent_dir
+
+  if [[ -n "${INSTALL_DIR:-}" ]]; then
+    expand_install_path "${INSTALL_DIR}"
+    return 0
+  fi
+
+  repo_url="${REPO_URL:-${DEFAULT_REPO_URL}}"
+  repo_name="$(repo_name_from_url "${repo_url}")"
+  parent_dir="$(pwd)"
+  printf '%s\n' "${parent_dir}/${repo_name}"
 }
 
 save_install_dir_marker() {
@@ -188,7 +220,7 @@ clone_or_update_repo() {
 
   if [[ -e "${install_dir}" && ! -d "${install_dir}/.git" ]]; then
     if [[ -n "$(ls -A "${install_dir}" 2>/dev/null)" ]]; then
-      die "Папка ${install_dir} не пуста. Создайте пустую папку, перейдите в неё (cd) и запустите установку снова."
+      die "Папка ${install_dir} уже существует и не пуста. Удалите её или укажите другой INSTALL_DIR."
     fi
   fi
 

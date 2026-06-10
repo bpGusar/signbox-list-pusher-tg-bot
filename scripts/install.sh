@@ -6,7 +6,7 @@
 # Приватный репозиторий (SSH):
 #   REPO_URL=git@github.com:USER/signbox-list-pusher-tg-bot.git curl -fsSL .../install.sh | bash
 #
-# По умолчанию установка в текущую папку (pwd). Своя папка:
+# По умолчанию: ./<имя-репозитория>/ в текущей папке. Свой путь:
 #   INSTALL_DIR=~/my-bot curl -fsSL .../install.sh | bash
 
 needs_bootstrap() {
@@ -29,17 +29,31 @@ needs_bootstrap() {
   return 0
 }
 
+bootstrap_repo_name_from_url() {
+  local url="$1" name="${url%/}"
+
+  name="${name##*/}"
+  name="${name%.git}"
+  printf '%s\n' "${name:-signbox-list-pusher-tg-bot}"
+}
+
 bootstrap_install() {
   set -e
 
-  local install_dir repo_url branch local_install
-  if [[ -n "${INSTALL_DIR:-}" ]]; then
-    install_dir="$(cd "${INSTALL_DIR}" && pwd)"
-  else
-    install_dir="$(pwd)"
-  fi
+  local install_dir repo_url branch repo_name local_install
   repo_url="${REPO_URL:-https://github.com/bpGusar/signbox-list-pusher-tg-bot.git}"
   branch="${REPO_BRANCH:-main}"
+
+  if [[ -n "${INSTALL_DIR:-}" ]]; then
+    install_dir="${INSTALL_DIR/#\~/$HOME}"
+    if [[ -d "${install_dir}" ]]; then
+      install_dir="$(cd "${install_dir}" && pwd)"
+    fi
+  else
+    repo_name="$(bootstrap_repo_name_from_url "${repo_url}")"
+    install_dir="$(pwd)/${repo_name}"
+  fi
+
   local_install="${install_dir}/scripts/install.sh"
 
   if [[ -f "${local_install}" ]]; then
@@ -62,7 +76,7 @@ bootstrap_install() {
   fi
 
   if [[ -e "${install_dir}" && ! -d "${install_dir}/.git" && -n "$(ls -A "${install_dir}" 2>/dev/null)" ]]; then
-    printf '!!> Папка %s не пуста. Создайте пустую папку, перейдите в неё (cd) и запустите установку снова.\n' "${install_dir}" >&2
+    printf '!!> Папка %s уже существует и не пуста. Удалите её или укажите другой INSTALL_DIR.\n' "${install_dir}" >&2
     exit 1
   fi
 

@@ -186,21 +186,21 @@ Docker, Git и клонирование репозитория скрипт ус
 
 ### Автоматическая установка (рекомендуется)
 
-На VPS создайте папку, перейдите в неё и выполните одну команду — `git clone` вручную не нужен:
+На VPS перейдите в нужную директорию и выполните одну команду:
 
 ```bash
-mkdir -p ~/bots/tg-pusher && cd ~/bots/tg-pusher
+cd /home/your_desired_folder
 curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/main/scripts/install.sh | bash
 ```
 
 Скрипт `scripts/install.sh`:
 
 1. Установит Docker и Git (если их нет).
-2. Склонирует репозиторий **в текущую папку** (ту, из которой вы запустили команду).
+2. Создаст подпапку с именем репозитория (`signbox-list-pusher-tg-bot`) **в текущей директории** и склонирует проект туда.
 3. Спросит значения для `.env` и создаст файл с правами `600`.
 4. Соберёт образ и запустит production-контейнер.
 
-> Папка должна быть **пустой**. Не запускайте установку из `/root` или `/home/user`, если там уже есть другие файлы.
+В примере выше проект окажется в `/home/your_desired_folder/signbox-list-pusher-tg-bot`. Родительская папка может содержать другие файлы.
 
 В логах должно появиться `Bot is running...`. Отправьте боту `/start` в Telegram для проверки доступа к GitHub.
 
@@ -210,22 +210,24 @@ curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/
 
 Передаются **перед** командой установки. Если не указаны — используются значения по умолчанию.
 
-| Переменная    | По умолчанию                                              | Описание |
-| ------------- | --------------------------------------------------------- | -------- |
-| `INSTALL_DIR` | текущая папка (`pwd`)                                     | Папка на сервере, куда клонируется проект |
-| `REPO_URL`    | `https://github.com/bpGusar/signbox-list-pusher-tg-bot.git` | URL git-репозитория |
-| `REPO_BRANCH` | `main`                                                    | Ветка для клонирования |
 
-**`INSTALL_DIR`** — путь к папке проекта на VPS. Если переменную не задавать, репозиторий клонируется **в ту папку, из которой вы запустили скрипт** (`pwd`). Обычный порядок: `mkdir` → `cd` → `curl ... | bash`.
+| Переменная    | По умолчанию                                                | Описание                             |
+| ------------- | ----------------------------------------------------------- | ------------------------------------ |
+| `INSTALL_DIR` | `./<имя-репозитория>` в текущей папке                       | Полный путь, куда клонируется проект |
+| `REPO_URL`    | `https://github.com/bpGusar/signbox-list-pusher-tg-bot.git` | URL git-репозитория                  |
+| `REPO_BRANCH` | `main`                                                      | Ветка для клонирования               |
+
+
+`**INSTALL_DIR`** — полный путь к папке проекта на VPS. Если переменную не задавать, в текущей директории (`pwd`) создаётся подпапка с именем репозитория (например, `signbox-list-pusher-tg-bot`).
 
 Примеры:
 
 ```bash
-# Установка в /opt/tg-bot
-mkdir -p /opt/tg-bot && cd /opt/tg-bot
+# Установка в ~/signbox-list-pusher-tg-bot
+cd ~
 curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/main/scripts/install.sh | bash
 
-# Установка без cd (явный путь)
+# Установка в явный путь (без подпапки с именем репо)
 INSTALL_DIR=~/bots/tg-pusher curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/main/scripts/install.sh | bash
 
 # Приватный репозиторий (нужен SSH-ключ на сервере)
@@ -245,14 +247,14 @@ curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/
 Или из папки проекта:
 
 ```bash
-cd /opt/tg-bot
+cd ~/signbox-list-pusher-tg-bot
 ./scripts/update.sh
 ```
 
 Если вы не в папке проекта:
 
 ```bash
-INSTALL_DIR=/opt/tg-bot curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/main/scripts/update.sh | bash
+INSTALL_DIR=~/signbox-list-pusher-tg-bot curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/main/scripts/update.sh | bash
 ```
 
 **Полное удаление** бота (контейнеры и образы с именами из `docker-compose.yml`; опционально — папка проекта):
@@ -276,7 +278,7 @@ cd signbox-list-pusher-tg-bot
 
 Для приватного репозитория используйте SSH-ключ или deploy token.
 
-2. Создайте и заполните `.env`:
+1. Создайте и заполните `.env`:
 
 ```bash
 cp .env.example .env
@@ -284,13 +286,13 @@ nano .env
 chmod 600 .env
 ```
 
-3. Соберите образ и запустите контейнер в фоне:
+1. Соберите образ и запустите контейнер в фоне:
 
 ```bash
 docker compose --profile prod up -d --build
 ```
 
-4. Проверьте, что контейнер работает:
+1. Проверьте, что контейнер работает:
 
 ```bash
 docker compose --profile prod ps
@@ -300,7 +302,7 @@ docker compose --profile prod logs -f bot
 Обновление вручную:
 
 ```bash
-cd /opt/tg-bot
+cd ~/signbox-list-pusher-tg-bot
 git pull
 docker compose --profile prod up -d --build
 ```
