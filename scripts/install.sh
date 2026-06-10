@@ -3,6 +3,9 @@
 # Одной командой с VPS (без git clone вручную):
 #   curl -fsSL https://raw.githubusercontent.com/bpGusar/signbox-list-pusher-tg-bot/main/scripts/install.sh | bash
 #
+# Без интерактива (CI / нет TTY) — передайте переменные окружения:
+#   BOT_TOKEN=... GITHUB_TOKEN=... GITHUB_USERNAME=... GITHUB_REPO=... curl -fsSL .../install.sh | bash
+#
 # Приватный репозиторий (SSH):
 #   REPO_URL=git@github.com:USER/signbox-list-pusher-tg-bot.git curl -fsSL .../install.sh | bash
 #
@@ -145,18 +148,33 @@ prompt_env_value() {
   local default="${2:-}"
   local value=""
   local prompt="  ${name}"
+  local env_value="${!name:-}"
+
+  if [[ -n "${env_value}" ]]; then
+    printf '%s' "${env_value}"
+    return 0
+  fi
 
   if [[ -n "${default}" ]]; then
     prompt+=" [${default}]"
   fi
   prompt+=": "
 
-  read -rp "${prompt}" value
+  # curl | bash подключает stdin к pipe, а не к терминалу — читаем с /dev/tty.
+  if [[ -r /dev/tty ]]; then
+    read -rp "${prompt}" value </dev/tty
+  else
+    read -rp "${prompt}" value
+  fi
+
   if [[ -z "${value}" && -n "${default}" ]]; then
     value="${default}"
   fi
 
   if [[ -z "${value}" ]]; then
+    if [[ ! -r /dev/tty ]]; then
+      die "Переменная ${name} обязательна. Задайте её в окружении, например: ${name}=значение curl -fsSL .../install.sh | bash"
+    fi
     die "Переменная ${name} обязательна."
   fi
 
