@@ -36,7 +36,7 @@ yarn install
 
 ## Настройка
 
-1. Создайте бота через [@BotFather](https://t.me/BotFather) и получите токен.
+1. Создайте бота через [@BotFather](https://t.me/BotFather) и получите токен.git
 2. Создайте fine-grained или classic GitHub token с правом **Contents: Read and write** для целевого репозитория.
 3. В корне репозитория должны существовать файлы `domain_list.lst` и `ip_list.lst`.
 4. Скопируйте `.env.example` в `.env` и заполните переменные:
@@ -157,6 +157,7 @@ docker compose --profile dev down
 
 ### Полезные Docker-команды
 
+
 | Команда                                        | Описание                              |
 | ---------------------------------------------- | ------------------------------------- |
 | `docker compose --profile prod up -d --build`  | Запуск production-бота                |
@@ -167,6 +168,7 @@ docker compose --profile dev down
 | `docker compose --profile prod down`           | Остановить production                 |
 | `docker compose --profile dev down`            | Остановить dev                        |
 | `docker compose build --no-cache`              | Полная пересборка образа              |
+
 
 ## Деплой на VPS
 
@@ -183,7 +185,7 @@ docker compose --profile dev down
 1. Клонируйте репозиторий на сервер:
 
 ```bash
-git clone https://github.com/YOUR_USER/podkop-list-pusher-tg-bot.git
+git clone https://github.com/bpGusar/podkop-list-pusher-tg-bot.git
 cd podkop-list-pusher-tg-bot
 ```
 
@@ -232,6 +234,7 @@ docker compose --profile prod up -d
 
 ### Эксплуатация
 
+
 | Команда                                     | Описание                        |
 | ------------------------------------------- | ------------------------------- |
 | `docker compose --profile prod logs -f bot` | Логи в реальном времени         |
@@ -239,8 +242,10 @@ docker compose --profile prod up -d
 | `docker compose --profile prod down`        | Остановка и удаление контейнера |
 | `docker compose --profile prod ps`          | Статус контейнера               |
 
+
 ### Безопасность
 
 - Не коммитьте `.env` в git.
 - Ограничьте права GitHub token только нужным репозиторием.
 - Храните `.env` с правами `600` — только владелец может читать секреты.
+
