@@ -2,6 +2,15 @@ import { DOMAIN_LIST_FILE, IP_LIST_FILE } from "../const/files";
 import type { AccessCheckResult } from "../github/types";
 import type { EntryType } from "../utils/types";
 
+const ENTRY_INPUT_HINT =
+  "Отправьте домен в формате `example.com` или IP/CIDR.\nНесколько значений — через запятую: `test1.com,test2.com` или `1.2.3.4,10.0.0.0/8`";
+
+const ENTRY_ACTION_CHOICE_HINT =
+  "добавить, отключить (`//`), удалить или отменить";
+
+const DISABLED_ENTRY_ACTION_CHOICE_HINT =
+  "включить, удалить или оставить как есть";
+
 export const TEXTS = {
   keyboard: {
     showStatus: "📋 Статус проверки",
@@ -11,8 +20,7 @@ export const TEXTS = {
   },
 
   start: {
-    prompt:
-      "Отправьте домен в формате `example.com` или IP/CIDR.\nНесколько значений — через запятую: `test1.com,test2.com` или `1.2.3.4,10.0.0.0/8`\n\nПосле ввода выберите действие: добавить, отключить (`//`) или удалить.",
+    prompt: `${ENTRY_INPUT_HINT}\n\nПосле ввода выберите действие: ${ENTRY_ACTION_CHOICE_HINT}.`,
     checkFailedReason: (reason: string) => `Причина: ${reason}`,
   },
 
@@ -103,8 +111,7 @@ export const TEXTS = {
   disabledEntries: {
     blockedEntry:
       "Есть отключённые записи. Выберите действие в сообщении выше или отправьте новые записи.",
-    actionExpired:
-      "Действие устарело. Отправьте записи заново и выберите «Добавить».",
+    actionExpired: `Действие устарело. Отправьте записи заново и выберите действие: ${DISABLED_ENTRY_ACTION_CHOICE_HINT}.`,
     actionAlreadyHandled: "Действие уже выполняется или выполнено.",
     prompt: (fileName: string, values: string[]) =>
       [
@@ -112,7 +119,7 @@ export const TEXTS = {
         "",
         ...values.map((value) => `• \`${value}\``),
         "",
-        "Выберите действие:",
+        `Выберите действие: ${DISABLED_ENTRY_ACTION_CHOICE_HINT}.`,
       ].join("\n"),
     onlyDisabled: (fileName: string, values: string[]) =>
       [
@@ -120,7 +127,7 @@ export const TEXTS = {
         "",
         ...values.map((value) => `• \`${value}\``),
         "",
-        "Выберите действие:",
+        `Выберите действие: ${DISABLED_ENTRY_ACTION_CHOICE_HINT}.`,
       ].join("\n"),
     enabled: (
       fileName: string,
@@ -239,8 +246,7 @@ export const TEXTS = {
   },
 
   entry: {
-    invalidFormat:
-      "Некорректный формат. Отправьте домен `example.com` или IP/CIDR.\nНесколько значений — через запятую: `test1.com,test2.com` или `1.2.3.4,10.0.0.0/8`",
+    invalidFormat: `Некорректный формат. ${ENTRY_INPUT_HINT}\n\nПосле ввода выберите действие: ${ENTRY_ACTION_CHOICE_HINT}.`,
     mixedTypes:
       "Нельзя смешивать домены и IP в одном сообщении. Отправьте только домены или только IP.",
     invalidItems: (items: string[]) =>
@@ -255,10 +261,9 @@ export const TEXTS = {
         `Получены записи (${TEXTS.entry.typeLabel(type)}):`,
         ...values.map((value) => `• \`${value}\``),
         "",
-        "Выберите действие:",
+        `Выберите действие: ${ENTRY_ACTION_CHOICE_HINT}.`,
       ].join("\n"),
-    actionExpired:
-      "Действие устарело. Отправьте записи заново и выберите действие.",
+    actionExpired: `Действие устарело. Отправьте записи заново и выберите действие: ${ENTRY_ACTION_CHOICE_HINT}.`,
     actionAlreadyHandled: "Действие уже выполняется или выполнено.",
     confirmActionInProgress: (actionLabel: string) =>
       `⏳ Выполняется: ${actionLabel}`,
