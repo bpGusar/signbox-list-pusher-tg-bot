@@ -152,3 +152,82 @@ docker compose --profile dev down
 | `docker compose build --no-cache`              | Полная пересборка образа              |
 
 
+## Деплой на VPS
+
+Инструкция для запуска бота на сервере в Docker-контейнере.
+
+### Предварительные требования
+
+- Выполнена [настройка](#настройка): токены Telegram и GitHub, файлы `domain_list.srs` и `ip_list.srs` в целевом репозитории.
+- На сервере установлены Docker и `docker compose`.
+- Открывать входящие порты не нужно — бот работает через long polling (исходящие HTTPS-запросы к Telegram и GitHub).
+
+### Первый деплой
+
+1. Клонируйте репозиторий на сервер:
+
+```bash
+git clone https://github.com/YOUR_USER/podkop-list-pusher-tg-bot.git
+cd podkop-list-pusher-tg-bot
+```
+
+Для приватного репозитория используйте SSH-ключ или deploy token.
+
+1. Создайте и заполните `.env`:
+
+```bash
+cp .env.example .env
+nano .env
+chmod 600 .env
+```
+
+1. Соберите образ и запустите контейнер в фоне:
+
+```bash
+docker compose --profile prod up -d --build
+```
+
+1. Проверьте, что контейнер работает:
+
+```bash
+docker compose --profile prod ps
+docker compose --profile prod logs -f bot
+```
+
+В логах должно появиться `Bot is running...`. Отправьте боту `/start` в Telegram для проверки доступа к GitHub.
+
+Контейнер настроен с `restart: unless-stopped` — после перезагрузки VPS Docker поднимет бота автоматически (если включён сервис Docker: `sudo systemctl enable docker`).
+
+### Обновление
+
+После изменений в репозитории на сервере:
+
+```bash
+cd ~/podkop-list-pusher-tg-bot
+git pull
+docker compose --profile prod up -d --build
+```
+
+Если изменился только `.env`, достаточно пересоздать контейнер:
+
+```bash
+docker compose --profile prod up -d
+```
+
+### Эксплуатация
+
+
+| Команда                                     | Описание                        |
+| ------------------------------------------- | ------------------------------- |
+| `docker compose --profile prod logs -f bot` | Логи в реальном времени         |
+| `docker compose --profile prod restart bot` | Перезапуск без пересборки       |
+| `docker compose --profile prod down`        | Остановка и удаление контейнера |
+| `docker compose --profile prod ps`          | Статус контейнера               |
+
+
+### Безопасность
+
+- Не коммитьте `.env` в git.
+- Ограничьте права GitHub token только нужным репозиторием.
+- Храните `.env` с правами `600` — только владелец может читать секреты.
+
