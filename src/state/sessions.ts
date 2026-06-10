@@ -196,7 +196,7 @@ export function buildEntryActionCallbackData(
 export function parseEntryActionCallbackData(
   data: string,
 ): { action: EntryAction; actionId: string } | null {
-  const match = data.match(/^entry:(add|disable|delete):([a-f0-9]{8})$/);
+  const match = data.match(/^entry:(add|disable|delete|cancel):([a-f0-9]{8})$/);
 
   if (!match) {
     return null;

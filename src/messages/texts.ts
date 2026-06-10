@@ -396,10 +396,12 @@ export const TEXTS = {
 
       return lines.join("\n");
     },
+    actionCancelled: "Действие отменено.",
     actionLabels: {
       add: "Добавить",
       disable: "Отключить",
       delete: "Удалить",
+      cancel: "Отменить",
     },
     sessionResetHint:
       "Сессия сброшена. Обновите `GITHUB_TOKEN` и выполните /start.",

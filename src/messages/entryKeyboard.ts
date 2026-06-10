@@ -27,6 +27,13 @@ export function buildEntryActionKeyboard(actionId: string) {
             actionId,
           ),
         },
+        {
+          text: TEXTS.entry.actionLabels.cancel,
+          callback_data: buildEntryActionCallbackData(
+            ENTRY_ACTION.CANCEL,
+            actionId,
+          ),
+        },
       ],
     ],
   };

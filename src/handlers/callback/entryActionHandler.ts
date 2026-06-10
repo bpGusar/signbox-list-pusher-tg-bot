@@ -249,6 +249,19 @@ export const entryActionHandler = async (
   }
 
   const { type, values } = pending;
+
+  if (action === ENTRY_ACTION.CANCEL) {
+    clearPendingEntries(chatId);
+
+    if (messageId) {
+      await removeInlineKeyboard(bot, chatId, messageId);
+    }
+
+    await bot.answerCallbackQuery(callbackQueryId);
+    await bot.sendMessage(chatId, TEXTS.entry.actionCancelled);
+    return;
+  }
+
   const duplicateReport = await findListDuplicates(type);
 
   if (duplicateReport) {
