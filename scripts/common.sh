@@ -152,36 +152,6 @@ clone_or_update_repo() {
   printf '%s\n' "${install_dir}"
 }
 
-prepare_install_repo() {
-  local repo_root
-
-  if repo_root="$(resolve_repo_root)"; then
-    NEED_INSTALL_REEXEC=false
-    printf '%s\n' "${repo_root}"
-    return 0
-  fi
-
-  repo_root="$(clone_or_update_repo)"
-  NEED_INSTALL_REEXEC=true
-  printf '%s\n' "${repo_root}"
-}
-
-should_reexec_install() {
-  local repo_root="$1"
-  local script_dir install_script
-
-  [[ "${NEED_INSTALL_REEXEC:-false}" == true ]] || return 1
-
-  script_dir="$(script_path)"
-  install_script="${repo_root}/scripts/install.sh"
-
-  if [[ ! -f "${install_script}" ]]; then
-    die "После клонирования не найден ${install_script}"
-  fi
-
-  [[ "${script_dir}" != "${repo_root}/scripts" ]]
-}
-
 ensure_repo_for_maintenance() {
   local repo_root
   if repo_root="$(resolve_repo_root)"; then

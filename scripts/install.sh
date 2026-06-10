@@ -123,12 +123,24 @@ start_bot() {
 }
 
 main() {
-  local repo_root
+  local repo_root script_dir install_script
 
-  repo_root="$(prepare_install_repo)"
-  if should_reexec_install "${repo_root}"; then
-    info "Перезапускаю установку из ${repo_root}/scripts/install.sh"
-    exec bash "${repo_root}/scripts/install.sh" "$@"
+  if repo_root="$(resolve_repo_root)"; then
+    :
+  else
+    repo_root="$(clone_or_update_repo)"
+    script_dir="$(script_path)"
+    install_script="${repo_root}/scripts/install.sh"
+
+    if [[ ! -f "${install_script}" ]]; then
+      die "После клонирования не найден ${install_script}"
+    fi
+
+    # curl ... | bash — перезапускаем скрипт из клонированного репозитория.
+    if [[ "${script_dir}" != "${repo_root}/scripts" ]]; then
+      info "Перезапускаю установку из ${install_script}"
+      exec bash "${install_script}" "$@"
+    fi
   fi
 
   REPO_ROOT="${repo_root}"
